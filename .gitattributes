@@ -6,6 +6,7 @@ gradlew.bat text eol=crlf
 
 # Binary files
 *.jar binary
+gradle/wrapper/gradle-wrapper.jar binary
 *.png binary
 *.webp binary
 *.jpg binary
