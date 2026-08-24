@@ -1,0 +1,6 @@
+{
+  "name": "Dr. Forex",
+  "description": "Quantitative Trading Research Laboratory for historical market data analysis, strategy hypothesis testing, and experiment tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
