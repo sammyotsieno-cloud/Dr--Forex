@@ -30,11 +30,26 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Restore Debug Keystore
+      - name: Restore and Verify Debug Keystore
         run: |
-          if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+          if [ ! -f "debug.keystore.base64" ] || [ ! -s "debug.keystore.base64" ]; then
+            echo "ERROR: debug.keystore.base64 is missing or empty from the GitHub checkout."
+            exit 1
           fi
+
+          base64 -d debug.keystore.base64 > "${GITHUB_WORKSPACE}/debug.keystore"
+
+          if [ ! -s "${GITHUB_WORKSPACE}/debug.keystore" ]; then
+            echo "ERROR: Failed to restore debug.keystore."
+            exit 1
+          fi
+
+          keytool -list \
+            -keystore "${GITHUB_WORKSPACE}/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey
+
+          echo "Debug keystore successfully restored and verified."
 
       - name: Run Unit & Robolectric Tests
         run: ./gradlew testDebugUnitTest
