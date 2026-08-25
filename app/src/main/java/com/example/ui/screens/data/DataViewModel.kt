@@ -6,12 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.DrForexDatabase
 import com.example.data.repository.DatasetRepositoryImpl
 import com.example.data.repository.SampleDataFactory
+import com.example.domain.engine.CsvInspector
+import com.example.domain.engine.CsvInspectorImpl
 import com.example.domain.engine.DataValidator
 import com.example.domain.engine.DataValidatorImpl
 import com.example.domain.engine.ValidationResult
+import com.example.domain.model.CsvInspectionResult
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MarketCandle
 import com.example.domain.model.ValidationStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +35,11 @@ data class DataUiState(
     val showImportDialog: Boolean = false,
     val showValidationDetailsDialog: Boolean = false,
     val activeCandles: List<MarketCandle> = emptyList(),
-    val statusMessage: String = ""
+    val statusMessage: String = "",
+    // Phase 2 Milestone 2.1: CSV Inspection
+    val csvInspectionResult: CsvInspectionResult? = null,
+    val isInspectingCsv: Boolean = false,
+    val csvInspectionError: String? = null
 )
 
 class DataViewModel(application: Application) : AndroidViewModel(application) {
@@ -39,6 +47,7 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     private val db = DrForexDatabase.getDatabase(application)
     private val datasetRepo = DatasetRepositoryImpl(db.datasetDao())
     private val validator: DataValidator = DataValidatorImpl()
+    private val csvInspector: CsvInspector = CsvInspectorImpl(validator)
 
     val datasetsFlow: StateFlow<List<DatasetMetadata>> = datasetRepo.allDatasets
         .stateIn(
@@ -189,6 +198,45 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = _uiState.value.copy(selectedDataset = null, activeCandles = emptyList())
             }
         }
+    }
+
+    /**
+     * Inspects a CSV file chosen via SAF file picker.
+     */
+    fun inspectCsvUri(uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = _uiState.value.copy(
+                isInspectingCsv = true,
+                csvInspectionError = null
+            )
+            try {
+                val resolver = getApplication<Application>().contentResolver
+                val result = csvInspector.inspectUri(resolver, uri)
+                _uiState.value = _uiState.value.copy(
+                    isInspectingCsv = false,
+                    csvInspectionResult = result,
+                    csvInspectionError = result.errorMessage,
+                    statusMessage = if (result.errorMessage == null) {
+                        "Inspected '${result.fileName}' (${result.headers.size} headers detected)"
+                    } else {
+                        "CSV Inspection warning: ${result.errorMessage}"
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isInspectingCsv = false,
+                    csvInspectionError = e.message ?: "Failed to open or inspect the selected CSV file",
+                    statusMessage = "Error reading CSV file"
+                )
+            }
+        }
+    }
+
+    fun clearCsvInspection() {
+        _uiState.value = _uiState.value.copy(
+            csvInspectionResult = null,
+            csvInspectionError = null
+        )
     }
 
     fun formatDate(timestamp: Long): String {

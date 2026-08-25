@@ -1,11 +1,16 @@
 package com.example.ui.screens.data
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,14 +26,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.domain.engine.ValidationResult
+import com.example.domain.model.CsvInspectionResult
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.ValidationStatus
 import com.example.ui.components.ScientificPrincipleBanner
@@ -70,12 +81,19 @@ import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DataScreen(
     viewModel: DataViewModel = viewModel()
 ) {
     val datasets by viewModel.datasetsFlow.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val csvPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.inspectCsvUri(it) }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -116,8 +134,29 @@ fun DataScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Button(
+                    onClick = {
+                        csvPickerLauncher.launch(
+                            arrayOf("text/*", "text/csv", "text/comma-separated-values", "application/csv", "*/*")
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .height(44.dp)
+                        .testTag("btn_import_csv"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Indigo600,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Import CSV", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+
                 Button(
                     onClick = { viewModel.loadDevelopmentSampleDataset() },
                     modifier = Modifier
@@ -125,7 +164,7 @@ fun DataScreen(
                         .height(44.dp)
                         .testTag("btn_load_sample_data"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Indigo600,
+                        containerColor = Slate900,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
@@ -138,7 +177,7 @@ fun DataScreen(
                 OutlinedButton(
                     onClick = { viewModel.openImportDialog() },
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(0.9f)
                         .height(44.dp)
                         .testTag("btn_import_csv_dialog"),
                     shape = RoundedCornerShape(12.dp),
@@ -146,9 +185,69 @@ fun DataScreen(
                     border = androidx.compose.foundation.BorderStroke(1.dp, Slate200)
                 ) {
                     Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Register CSV", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Register", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 }
+            }
+        }
+
+        // CSV Inspection Loading State
+        if (state.isInspectingCsv) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("csv_inspection_loading"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Indigo600.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Indigo600,
+                            strokeWidth = 2.5.dp
+                        )
+                        Column {
+                            Text(
+                                text = "Inspecting Selected CSV...",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Reading file metadata, analyzing headers, and verifying schema",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // CSV Inspection Error (without result)
+        if (state.csvInspectionError != null && state.csvInspectionResult == null) {
+            item {
+                CsvInspectionErrorCard(
+                    errorMessage = state.csvInspectionError ?: "Unknown error",
+                    onDismiss = { viewModel.clearCsvInspection() }
+                )
+            }
+        }
+
+        // CSV Inspection Result Card
+        state.csvInspectionResult?.let { inspection ->
+            item {
+                CsvInspectionResultCard(
+                    result = inspection,
+                    onDismiss = { viewModel.clearCsvInspection() }
+                )
             }
         }
 
@@ -189,7 +288,7 @@ fun DataScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Load the development sample dataset (EUR/USD M15) or register metadata to begin quantitative research.",
+                            text = "Use 'Import CSV' to inspect your historical market data or load the development sample dataset.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -526,4 +625,321 @@ private fun CsvImportDialog(
         shape = RoundedCornerShape(20.dp),
         containerColor = MaterialTheme.colorScheme.surface
     )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CsvInspectionResultCard(
+    result: CsvInspectionResult,
+    onDismiss: () -> Unit
+) {
+    val isSuccess = result.isHeaderValid && result.errorMessage == null
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("csv_inspection_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            if (isSuccess) PolishEmerald.copy(alpha = 0.6f) else if (result.errorMessage != null || result.isFileEmpty) PolishRose.copy(alpha = 0.6f) else PolishAmber.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSuccess) Indigo50 else Slate100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = if (isSuccess) Indigo600 else Slate600,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "CSV FILE INSPECTION",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Indigo600,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = result.fileName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.testTag("csv_file_name_text")
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .testTag("btn_clear_inspection")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear Inspection",
+                        tint = Slate400,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // File Size & Validation Status Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "File Size:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate400,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = result.formattedFileSize,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate800,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.testTag("csv_file_size_text")
+                    )
+                }
+
+                // Status Pill
+                val (statusText, statusBg, statusFg) = when {
+                    result.isFileEmpty -> Triple("EMPTY CSV", PolishRose.copy(alpha = 0.12f), PolishRose)
+                    result.errorMessage != null -> Triple("INSPECTION ERROR", PolishRose.copy(alpha = 0.12f), PolishRose)
+                    result.isHeaderValid -> Triple("VALID OHLC HEADERS", PolishEmerald.copy(alpha = 0.12f), PolishEmerald)
+                    else -> Triple("MISSING REQUIRED COLUMNS", PolishAmber.copy(alpha = 0.15f), PolishAmber)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(statusBg)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = statusText,
+                        color = statusFg,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            // Error display if any
+            if (result.errorMessage != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PolishRose.copy(alpha = 0.1f))
+                        .border(1.dp, PolishRose.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .padding(12.dp)
+                        .testTag("csv_inspection_error")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = PolishRose,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = result.errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PolishRose,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Detected Headers Section
+            if (result.headers.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Detected Column Headers (${result.headers.size}):",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Slate600,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("csv_headers_container"),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val standardOhlc = setOf("timestamp", "time", "date", "open", "high", "low", "close", "volume", "vol")
+                        result.headers.forEach { header ->
+                            val isStandard = standardOhlc.any { header.trim().lowercase().contains(it) }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isStandard) Indigo50 else Slate100)
+                                    .border(
+                                        1.dp,
+                                        if (isStandard) Indigo600.copy(alpha = 0.4f) else Slate200,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = header,
+                                    color = if (isStandard) Indigo600 else Slate800,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isStandard) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Header Validation Issues
+            if (result.headerErrors.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PolishAmber.copy(alpha = 0.08f))
+                        .border(1.dp, PolishAmber.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Required Column Issues:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PolishAmber,
+                        fontWeight = FontWeight.Bold
+                    )
+                    result.headerErrors.forEach { issue ->
+                        Text(
+                            text = "• ${issue.message}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate800,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            // Sample Preview Rows
+            if (result.samplePreviewRows.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Sample Data Preview (${result.samplePreviewRows.size} row(s)):",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Slate400,
+                        fontWeight = FontWeight.Bold
+                    )
+                    result.samplePreviewRows.forEachIndexed { idx, row ->
+                        Text(
+                            text = "${idx + 1}: ${row.joinToString(" | ")}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate600,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CsvInspectionErrorCard(
+    errorMessage: String,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("csv_inspection_error"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, PolishRose.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(PolishRose.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = PolishRose,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "CSV Inspection Failed",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PolishRose
+                )
+                Text(
+                    text = errorMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate700,
+                    fontSize = 11.sp
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = Slate400,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
 }
