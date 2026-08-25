@@ -6,14 +6,18 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.DrForexDatabase
 import com.example.data.repository.DatasetRepositoryImpl
 import com.example.data.repository.SampleDataFactory
+import com.example.domain.engine.CsvColumnMapper
+import com.example.domain.engine.CsvColumnMapperImpl
 import com.example.domain.engine.CsvInspector
 import com.example.domain.engine.CsvInspectorImpl
 import com.example.domain.engine.DataValidator
 import com.example.domain.engine.DataValidatorImpl
 import com.example.domain.engine.ValidationResult
+import com.example.domain.model.CsvColumnMapping
 import com.example.domain.model.CsvInspectionResult
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MarketCandle
+import com.example.domain.model.MappingValidationResult
 import com.example.domain.model.ValidationStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +43,11 @@ data class DataUiState(
     // Phase 2 Milestone 2.1: CSV Inspection
     val csvInspectionResult: CsvInspectionResult? = null,
     val isInspectingCsv: Boolean = false,
-    val csvInspectionError: String? = null
+    val csvInspectionError: String? = null,
+    // Phase 2 Milestone 2.2: CSV Column Mapping
+    val csvColumnMapping: CsvColumnMapping = CsvColumnMapping(),
+    val mappingValidationResult: MappingValidationResult = MappingValidationResult(isValid = false),
+    val isMappingConfirmed: Boolean = false
 )
 
 class DataViewModel(application: Application) : AndroidViewModel(application) {
@@ -48,6 +56,7 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     private val datasetRepo = DatasetRepositoryImpl(db.datasetDao())
     private val validator: DataValidator = DataValidatorImpl()
     private val csvInspector: CsvInspector = CsvInspectorImpl(validator)
+    private val columnMapper: CsvColumnMapper = CsvColumnMapperImpl()
 
     val datasetsFlow: StateFlow<List<DatasetMetadata>> = datasetRepo.allDatasets
         .stateIn(
@@ -201,23 +210,38 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Inspects a CSV file chosen via SAF file picker.
+     * Inspects a CSV file chosen via SAF file picker and automatically maps columns.
      */
     fun inspectCsvUri(uri: android.net.Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(
                 isInspectingCsv = true,
-                csvInspectionError = null
+                csvInspectionError = null,
+                isMappingConfirmed = false
             )
             try {
                 val resolver = getApplication<Application>().contentResolver
                 val result = csvInspector.inspectUri(resolver, uri)
+                val autoMapping = if (result.headers.isNotEmpty()) {
+                    columnMapper.autoDetectMapping(result.headers)
+                } else {
+                    CsvColumnMapping()
+                }
+                val mappingValidation = columnMapper.validateMapping(autoMapping, result.headers)
+
                 _uiState.value = _uiState.value.copy(
                     isInspectingCsv = false,
                     csvInspectionResult = result,
                     csvInspectionError = result.errorMessage,
+                    csvColumnMapping = autoMapping,
+                    mappingValidationResult = mappingValidation,
+                    isMappingConfirmed = false,
                     statusMessage = if (result.errorMessage == null) {
-                        "Inspected '${result.fileName}' (${result.headers.size} headers detected)"
+                        if (mappingValidation.isValid) {
+                            "Inspected '${result.fileName}' — columns automatically mapped"
+                        } else {
+                            "Inspected '${result.fileName}' — please configure column mapping"
+                        }
                     } else {
                         "CSV Inspection warning: ${result.errorMessage}"
                     }
@@ -232,10 +256,75 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Updates an individual field mapping (e.g. "timestamp", "open", "high", "low", "close", "volume")
+     * and re-evaluates validation immediately.
+     */
+    fun updateColumnMapping(targetField: String, selectedCsvHeader: String?) {
+        val current = _uiState.value.csvColumnMapping
+        val header = if (selectedCsvHeader.isNullOrBlank() || selectedCsvHeader == "(Not mapped)") null else selectedCsvHeader
+        val updated = when (targetField.lowercase(Locale.ROOT)) {
+            "timestamp" -> current.copy(timestampColumn = header)
+            "open" -> current.copy(openColumn = header)
+            "high" -> current.copy(highColumn = header)
+            "low" -> current.copy(lowColumn = header)
+            "close" -> current.copy(closeColumn = header)
+            "volume" -> current.copy(volumeColumn = header)
+            else -> current
+        }
+        val availableHeaders = _uiState.value.csvInspectionResult?.headers ?: emptyList()
+        val validation = columnMapper.validateMapping(updated, availableHeaders)
+        _uiState.value = _uiState.value.copy(
+            csvColumnMapping = updated,
+            mappingValidationResult = validation,
+            isMappingConfirmed = false
+        )
+    }
+
+    /**
+     * Resets column mappings back to the automatic alias detection result.
+     */
+    fun resetColumnMappingToAuto() {
+        val headers = _uiState.value.csvInspectionResult?.headers ?: emptyList()
+        val autoMapping = columnMapper.autoDetectMapping(headers)
+        val validation = columnMapper.validateMapping(autoMapping, headers)
+        _uiState.value = _uiState.value.copy(
+            csvColumnMapping = autoMapping,
+            mappingValidationResult = validation,
+            isMappingConfirmed = false,
+            statusMessage = "Reset column mapping to auto-detected values"
+        )
+    }
+
+    /**
+     * Confirms the column mapping after verifying all required fields and absence of duplicates.
+     */
+    fun confirmColumnMapping() {
+        val current = _uiState.value.csvColumnMapping
+        val headers = _uiState.value.csvInspectionResult?.headers ?: emptyList()
+        val validation = columnMapper.validateMapping(current, headers)
+        if (validation.isValid) {
+            _uiState.value = _uiState.value.copy(
+                mappingValidationResult = validation,
+                isMappingConfirmed = true,
+                statusMessage = "Column mapping confirmed for ${_uiState.value.csvInspectionResult?.fileName ?: "CSV file"}"
+            )
+        } else {
+            _uiState.value = _uiState.value.copy(
+                mappingValidationResult = validation,
+                isMappingConfirmed = false,
+                statusMessage = "Please resolve mapping errors before confirming"
+            )
+        }
+    }
+
     fun clearCsvInspection() {
         _uiState.value = _uiState.value.copy(
             csvInspectionResult = null,
-            csvInspectionError = null
+            csvInspectionError = null,
+            csvColumnMapping = CsvColumnMapping(),
+            mappingValidationResult = MappingValidationResult(isValid = false),
+            isMappingConfirmed = false
         )
     }
 
