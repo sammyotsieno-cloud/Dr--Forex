@@ -244,4 +244,59 @@ class CsvColumnMappingTest {
         assertFalse(validation.isValid)
         assertEquals(5, validation.missingRequiredFields.size)
     }
+
+    /**
+     * TEST 11 — Downstream DataValidator accepts mapped Etc UTC as canonical Timestamp:
+     * Headers: Etc/UTC,Open,High,Low,Close,Volume
+     * Mapping: Timestamp -> Etc/UTC, Open -> Open, High -> High, Low -> Low, Close -> Close, Volume -> Volume
+     * DataValidator must consider this valid without requiring the raw header string to literally be 'timestamp'.
+     */
+    @Test
+    fun `test downstream DataValidator validates Etc UTC headers with mapping as valid`() {
+        val headers = listOf("Etc/UTC", "Open", "High", "Low", "Close", "Volume")
+        val mapping = CsvColumnMapping(
+            timestampColumn = "Etc/UTC",
+            openColumn = "Open",
+            highColumn = "High",
+            lowColumn = "Low",
+            closeColumn = "Close",
+            volumeColumn = "Volume"
+        )
+
+        val validator = com.example.domain.engine.DataValidatorImpl()
+        val errors = validator.validateCsvHeaders(headers, mapping)
+
+        assertTrue("Downstream validator must accept mapped Etc/UTC without errors", errors.isEmpty())
+
+        val csvLines = listOf(
+            "Etc/UTC,Open,High,Low,Close,Volume",
+            "2026-08-25T01:00:00+00:00,1.16687,1.16687,1.16548,1.16557,12231860000",
+            "2026-08-25T05:00:00+00:00,1.16557,1.16677,1.16510,1.16673,21067200000"
+        )
+        val contentResult = validator.validateCsvContent(csvLines, mapping)
+        assertTrue("Downstream validateCsvContent with mapping must be valid", contentResult.isValid)
+        assertEquals(2, contentResult.validRows)
+    }
+
+    /**
+     * TEST 12 — Downstream DataValidator rejects headers when required mapped column is missing:
+     */
+    @Test
+    fun `test downstream DataValidator rejects missing mapped column`() {
+        val headers = listOf("Etc/UTC", "Open", "High", "Low", "Volume")
+        val mapping = CsvColumnMapping(
+            timestampColumn = "Etc/UTC",
+            openColumn = "Open",
+            highColumn = "High",
+            lowColumn = "Low",
+            closeColumn = null, // Close missing
+            volumeColumn = "Volume"
+        )
+
+        val validator = com.example.domain.engine.DataValidatorImpl()
+        val errors = validator.validateCsvHeaders(headers, mapping)
+
+        assertFalse("Missing mapped close column must fail validation", errors.isEmpty())
+        assertTrue("Error must identify close as missing", errors.any { it.field == "close" })
+    }
 }

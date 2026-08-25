@@ -1,13 +1,18 @@
 package com.example.domain.engine
 
+import com.example.domain.model.CsvColumnMapping
 import com.example.domain.model.MarketCandle
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Interface for verifying historical market dataset integrity.
  *
- * Checks implemented in Phase 1:
+ * Checks implemented in Phase 1 & Phase 2:
  * - Empty dataset detection
- * - Required CSV column presence
+ * - Required CSV column presence (via raw headers or confirmed CsvColumnMapping)
  * - Missing / non-numeric values
  * - Duplicate timestamps
  * - Strict chronological ordering
@@ -28,9 +33,20 @@ interface DataValidator {
     fun validateCsvHeaders(headers: List<String>): List<ValidationError>
 
     /**
+     * Validates CSV headers against required canonical columns using an optional confirmed/detected column mapping.
+     * When mapping is provided, canonical fields (Timestamp, Open, High, Low, Close) are resolved through the mapping.
+     */
+    fun validateCsvHeaders(headers: List<String>, mapping: CsvColumnMapping?): List<ValidationError>
+
+    /**
      * Validates raw CSV content lines.
      */
     fun validateCsvContent(lines: List<String>): ValidationResult
+
+    /**
+     * Validates raw CSV content lines using an optional column mapping.
+     */
+    fun validateCsvContent(lines: List<String>, mapping: CsvColumnMapping?): ValidationResult
 }
 
 class DataValidatorImpl : DataValidator {
@@ -38,8 +54,47 @@ class DataValidatorImpl : DataValidator {
     private val requiredHeaders = setOf("timestamp", "open", "high", "low", "close")
 
     override fun validateCsvHeaders(headers: List<String>): List<ValidationError> {
-        val normalizedHeaders = headers.map { it.trim().lowercase() }.toSet()
-        val missing = requiredHeaders.filter { !normalizedHeaders.contains(it) && !normalizedHeaders.any { h -> h.contains(it) } }
+        return validateCsvHeaders(headers, mapping = null)
+    }
+
+    override fun validateCsvHeaders(headers: List<String>, mapping: CsvColumnMapping?): List<ValidationError> {
+        if (mapping != null) {
+            val errors = mutableListOf<ValidationError>()
+            val headerLookup = headers.map { it.trim().lowercase(Locale.ROOT) }.toSet()
+
+            fun checkRequiredMappedField(canonicalField: String, mappedCol: String?) {
+                if (mappedCol.isNullOrBlank()) {
+                    errors.add(
+                        ValidationError(
+                            rowIndex = 0,
+                            field = canonicalField,
+                            message = "Missing required column: '$canonicalField' (No column mapped)"
+                        )
+                    )
+                } else if (!headerLookup.contains(mappedCol.trim().lowercase(Locale.ROOT))) {
+                    errors.add(
+                        ValidationError(
+                            rowIndex = 0,
+                            field = canonicalField,
+                            message = "Missing required column: '$canonicalField' (Mapped column '$mappedCol' not found in headers)"
+                        )
+                    )
+                }
+            }
+
+            checkRequiredMappedField("timestamp", mapping.timestampColumn)
+            checkRequiredMappedField("open", mapping.openColumn)
+            checkRequiredMappedField("high", mapping.highColumn)
+            checkRequiredMappedField("low", mapping.lowColumn)
+            checkRequiredMappedField("close", mapping.closeColumn)
+
+            return errors
+        }
+
+        val normalizedHeaders = headers.map { it.trim().lowercase(Locale.ROOT) }.toSet()
+        val missing = requiredHeaders.filter { req ->
+            !normalizedHeaders.contains(req) && !normalizedHeaders.any { h -> h.contains(req) }
+        }
 
         return missing.map { missingField ->
             ValidationError(
@@ -210,6 +265,10 @@ class DataValidatorImpl : DataValidator {
     }
 
     override fun validateCsvContent(lines: List<String>): ValidationResult {
+        return validateCsvContent(lines, mapping = null)
+    }
+
+    override fun validateCsvContent(lines: List<String>, mapping: CsvColumnMapping?): ValidationResult {
         if (lines.isEmpty()) {
             return ValidationResult(
                 isValid = false,
@@ -221,8 +280,8 @@ class DataValidatorImpl : DataValidator {
         }
 
         val headerLine = lines.first()
-        val headers = headerLine.split(",").map { it.trim() }
-        val headerErrors = validateCsvHeaders(headers)
+        val headers = headerLine.split(",").map { it.trim().removeSurrounding("\"") }
+        val headerErrors = validateCsvHeaders(headers, mapping)
         if (headerErrors.isNotEmpty()) {
             return ValidationResult(
                 isValid = false,
@@ -233,6 +292,45 @@ class DataValidatorImpl : DataValidator {
             )
         }
 
+        // Determine column indices from mapping (or default positional/alias matching)
+        val timestampIdx = if (mapping?.timestampColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.timestampColumn.trim(), ignoreCase = true) }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("timestamp") || it.trim().lowercase(Locale.ROOT).contains("time") || it.trim().lowercase(Locale.ROOT).contains("date") || it.trim().lowercase(Locale.ROOT).contains("utc") }.let { if (it != -1) it else 0 }
+        }
+
+        val openIdx = if (mapping?.openColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.openColumn.trim(), ignoreCase = true) }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("open") }.let { if (it != -1) it else 1 }
+        }
+
+        val highIdx = if (mapping?.highColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.highColumn.trim(), ignoreCase = true) }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("high") }.let { if (it != -1) it else 2 }
+        }
+
+        val lowIdx = if (mapping?.lowColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.lowColumn.trim(), ignoreCase = true) }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("low") }.let { if (it != -1) it else 3 }
+        }
+
+        val closeIdx = if (mapping?.closeColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.closeColumn.trim(), ignoreCase = true) }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("close") }.let { if (it != -1) it else 4 }
+        }
+
+        val volumeIdx = if (mapping?.volumeColumn != null) {
+            headers.indexOfFirst { it.trim().equals(mapping.volumeColumn.trim(), ignoreCase = true) }.takeIf { it != -1 }
+        } else {
+            headers.indexOfFirst { it.trim().lowercase(Locale.ROOT).contains("volume") || it.trim().lowercase(Locale.ROOT).contains("vol") }.takeIf { it != -1 }
+        }
+
+        val maxRequiredIdx = maxOf(timestampIdx, openIdx, highIdx, lowIdx, closeIdx)
+
         // Parse data rows
         val parsedCandles = mutableListOf<MarketCandle>()
         val parsingErrors = mutableListOf<ValidationError>()
@@ -241,24 +339,25 @@ class DataValidatorImpl : DataValidator {
             val line = lines[i].trim()
             if (line.isEmpty()) continue
 
-            val tokens = line.split(",").map { it.trim() }
-            if (tokens.size < 5) {
+            val tokens = line.split(",").map { it.trim().removeSurrounding("\"") }
+            if (tokens.size <= maxRequiredIdx) {
                 parsingErrors.add(
-                    ValidationError(i, "columns", "Row $i: Incomplete row with only ${tokens.size} columns")
+                    ValidationError(i, "columns", "Row $i: Incomplete row with only ${tokens.size} columns (expected at least ${maxRequiredIdx + 1})")
                 )
                 continue
             }
 
             try {
-                val timestamp = tokens[0].toLongOrNull() ?: 0L
-                val open = tokens[1].toDouble()
-                val high = tokens[2].toDouble()
-                val low = tokens[3].toDouble()
-                val close = tokens[4].toDouble()
-                val volume = if (tokens.size > 5) tokens[5].toDoubleOrNull() ?: 0.0 else 0.0
+                val rawTs = tokens[timestampIdx]
+                val timestamp = parseTimestampString(rawTs)
+                val open = tokens[openIdx].toDouble()
+                val high = tokens[highIdx].toDouble()
+                val low = tokens[lowIdx].toDouble()
+                val close = tokens[closeIdx].toDouble()
+                val volume = if (volumeIdx != null && volumeIdx < tokens.size) tokens[volumeIdx].toDoubleOrNull() ?: 0.0 else 0.0
 
-                if (timestamp <= 0) {
-                    parsingErrors.add(ValidationError(i, "timestamp", "Row $i: Invalid timestamp format"))
+                if (timestamp == null || timestamp <= 0) {
+                    parsingErrors.add(ValidationError(i, "timestamp", "Row $i: Invalid timestamp format ('$rawTs')"))
                     continue
                 }
 
@@ -281,5 +380,19 @@ class DataValidatorImpl : DataValidator {
         }
 
         return validateCandles(parsedCandles)
+    }
+
+    private fun parseTimestampString(raw: String): Long? {
+        val clean = raw.trim().removeSurrounding("\"")
+        clean.toLongOrNull()?.let { if (it > 0) return it }
+        return try {
+            Instant.parse(clean).toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                OffsetDateTime.parse(clean, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }

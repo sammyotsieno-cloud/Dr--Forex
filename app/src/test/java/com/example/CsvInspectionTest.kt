@@ -149,6 +149,58 @@ class CsvInspectionTest {
     }
 
     @Test
+    fun `test real-world CSV Etc UTC headers with mapping is valid and has no header errors`() {
+        val csvContent = """
+            Etc/UTC,Open,High,Low,Close,Volume
+            2026-08-25T01:00:00+00:00,1.16687,1.16687,1.16548,1.16557,12231860000
+            2026-08-25T05:00:00+00:00,1.16557,1.16677,1.16510,1.16673,21067200000
+        """.trimIndent()
+
+        val mapping = com.example.domain.model.CsvColumnMapping(
+            timestampColumn = "Etc/UTC",
+            openColumn = "Open",
+            highColumn = "High",
+            lowColumn = "Low",
+            closeColumn = "Close",
+            volumeColumn = "Volume"
+        )
+
+        val stream = ByteArrayInputStream(csvContent.toByteArray(Charsets.UTF_8))
+        val result = inspector.inspectStream(stream, fileName = "eurusd_m15.csv", mapping = mapping)
+
+        assertEquals(listOf("Etc/UTC", "Open", "High", "Low", "Close", "Volume"), result.headers)
+        assertTrue("Real-world Etc/UTC mapped to Timestamp must be valid", result.isHeaderValid)
+        assertEquals(0, result.headerErrors.size)
+        assertFalse(result.isFileEmpty)
+        assertEquals(null, result.errorMessage)
+        assertEquals(2, result.samplePreviewRows.size)
+    }
+
+    @Test
+    fun `test CSV missing required mapped field is rejected by downstream validation`() {
+        val csvContent = """
+            Etc/UTC,Open,High,Low,Volume
+            2026-08-25T01:00:00+00:00,1.16687,1.16687,1.16548,12231860000
+        """.trimIndent()
+
+        val mapping = com.example.domain.model.CsvColumnMapping(
+            timestampColumn = "Etc/UTC",
+            openColumn = "Open",
+            highColumn = "High",
+            lowColumn = "Low",
+            closeColumn = null, // Close is missing
+            volumeColumn = "Volume"
+        )
+
+        val stream = ByteArrayInputStream(csvContent.toByteArray(Charsets.UTF_8))
+        val result = inspector.inspectStream(stream, fileName = "missing_close_mapped.csv", mapping = mapping)
+
+        assertFalse("Missing required mapped field Close must fail validation", result.isHeaderValid)
+        assertEquals(1, result.headerErrors.size)
+        assertEquals("close", result.headerErrors[0].field)
+    }
+
+    @Test
     fun `test file size formatting helper`() {
         assertEquals("Unknown size", CsvInspectorImpl.formatFileSize(null))
         assertEquals("Unknown size", CsvInspectorImpl.formatFileSize(-1L))

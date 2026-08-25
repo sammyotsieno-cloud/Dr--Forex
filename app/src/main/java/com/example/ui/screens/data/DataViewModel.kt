@@ -67,8 +67,8 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     private val db = DrForexDatabase.getDatabase(application)
     private val datasetRepo = DatasetRepositoryImpl(db.datasetDao(), db.candleDao())
     private val validator: DataValidator = DataValidatorImpl()
-    private val csvInspector: CsvInspector = CsvInspectorImpl(validator)
     private val columnMapper: CsvColumnMapper = CsvColumnMapperImpl()
+    private val csvInspector: CsvInspector = CsvInspectorImpl(validator, columnMapper)
     private val csvCandleImporter: CsvCandleImporter = CsvCandleImporterImpl(validator)
     private val qualityAnalyzer: DataQualityAnalyzer = DataQualityAnalyzerImpl()
 
@@ -318,7 +318,13 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         }
         val availableHeaders = _uiState.value.csvInspectionResult?.headers ?: emptyList()
         val validation = columnMapper.validateMapping(updated, availableHeaders)
+        val mappedHeaderErrors = validator.validateCsvHeaders(availableHeaders, updated)
+        val updatedInspectionResult = _uiState.value.csvInspectionResult?.copy(
+            headerErrors = mappedHeaderErrors,
+            isHeaderValid = mappedHeaderErrors.isEmpty()
+        )
         _uiState.value = _uiState.value.copy(
+            csvInspectionResult = updatedInspectionResult,
             csvColumnMapping = updated,
             mappingValidationResult = validation,
             isMappingConfirmed = false
@@ -332,7 +338,13 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         val headers = _uiState.value.csvInspectionResult?.headers ?: emptyList()
         val autoMapping = columnMapper.autoDetectMapping(headers)
         val validation = columnMapper.validateMapping(autoMapping, headers)
+        val mappedHeaderErrors = validator.validateCsvHeaders(headers, autoMapping)
+        val updatedInspectionResult = _uiState.value.csvInspectionResult?.copy(
+            headerErrors = mappedHeaderErrors,
+            isHeaderValid = mappedHeaderErrors.isEmpty()
+        )
         _uiState.value = _uiState.value.copy(
+            csvInspectionResult = updatedInspectionResult,
             csvColumnMapping = autoMapping,
             mappingValidationResult = validation,
             isMappingConfirmed = false,
@@ -347,14 +359,21 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         val current = _uiState.value.csvColumnMapping
         val headers = _uiState.value.csvInspectionResult?.headers ?: emptyList()
         val validation = columnMapper.validateMapping(current, headers)
+        val mappedHeaderErrors = validator.validateCsvHeaders(headers, current)
+        val updatedInspectionResult = _uiState.value.csvInspectionResult?.copy(
+            headerErrors = mappedHeaderErrors,
+            isHeaderValid = mappedHeaderErrors.isEmpty()
+        )
         if (validation.isValid) {
             _uiState.value = _uiState.value.copy(
+                csvInspectionResult = updatedInspectionResult,
                 mappingValidationResult = validation,
                 isMappingConfirmed = true,
                 statusMessage = "Column mapping confirmed for ${_uiState.value.csvInspectionResult?.fileName ?: "CSV file"}"
             )
         } else {
             _uiState.value = _uiState.value.copy(
+                csvInspectionResult = updatedInspectionResult,
                 mappingValidationResult = validation,
                 isMappingConfirmed = false,
                 statusMessage = "Please resolve mapping errors before confirming"

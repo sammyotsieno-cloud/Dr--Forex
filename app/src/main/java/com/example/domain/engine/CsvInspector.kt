@@ -3,6 +3,7 @@ package com.example.domain.engine
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.example.domain.model.CsvColumnMapping
 import com.example.domain.model.CsvInspectionResult
 import java.io.BufferedReader
 import java.io.InputStream
@@ -21,7 +22,8 @@ interface CsvInspector {
     fun inspectStream(
         inputStream: InputStream,
         fileName: String = "unknown.csv",
-        fileSizeBytes: Long? = null
+        fileSizeBytes: Long? = null,
+        mapping: CsvColumnMapping? = null
     ): CsvInspectionResult
 
     /**
@@ -30,18 +32,21 @@ interface CsvInspector {
      */
     fun inspectUri(
         contentResolver: ContentResolver,
-        uri: Uri
+        uri: Uri,
+        mapping: CsvColumnMapping? = null
     ): CsvInspectionResult
 }
 
 class CsvInspectorImpl(
-    private val dataValidator: DataValidator = DataValidatorImpl()
+    private val dataValidator: DataValidator = DataValidatorImpl(),
+    private val columnMapper: CsvColumnMapper = CsvColumnMapperImpl()
 ) : CsvInspector {
 
     override fun inspectStream(
         inputStream: InputStream,
         fileName: String,
-        fileSizeBytes: Long?
+        fileSizeBytes: Long?,
+        mapping: CsvColumnMapping?
     ): CsvInspectionResult {
         val formattedSize = formatFileSize(fileSizeBytes)
         return try {
@@ -87,8 +92,10 @@ class CsvInspectorImpl(
                 )
             }
 
-            // Validate headers against required columns (timestamp, open, high, low, close)
-            val headerErrors = dataValidator.validateCsvHeaders(headers)
+            // Validate headers against required canonical columns (Timestamp, Open, High, Low, Close)
+            // using the provided or auto-detected CsvColumnMapping.
+            val effectiveMapping = mapping ?: columnMapper.autoDetectMapping(headers)
+            val headerErrors = dataValidator.validateCsvHeaders(headers, effectiveMapping)
             val isHeaderValid = headerErrors.isEmpty()
 
             // Read up to 3 sample preview rows
@@ -130,7 +137,8 @@ class CsvInspectorImpl(
 
     override fun inspectUri(
         contentResolver: ContentResolver,
-        uri: Uri
+        uri: Uri,
+        mapping: CsvColumnMapping?
     ): CsvInspectionResult {
         var fileName = "selected_dataset.csv"
         var fileSize: Long? = null
@@ -171,7 +179,7 @@ class CsvInspectorImpl(
                 )
 
             stream.use { s ->
-                inspectStream(s, fileName, fileSize)
+                inspectStream(s, fileName, fileSize, mapping)
             }
         } catch (e: Exception) {
             CsvInspectionResult(
