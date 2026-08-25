@@ -30,26 +30,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Restore and Verify Debug Keystore
+      - name: Generate and Verify Debug Keystore
         run: |
-          if [ ! -f "debug.keystore.base64" ] || [ ! -s "debug.keystore.base64" ]; then
-            echo "ERROR: debug.keystore.base64 is missing or empty from the GitHub checkout."
+          KEYSTORE_PATH="${GITHUB_WORKSPACE}/debug.keystore"
+          echo "Generating standard Android debug keystore at: ${KEYSTORE_PATH}"
+
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          if [ ! -f "$KEYSTORE_PATH" ] || [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "ERROR: debug.keystore was not created or is empty at ${KEYSTORE_PATH}"
             exit 1
           fi
 
-          base64 -d debug.keystore.base64 > "${GITHUB_WORKSPACE}/debug.keystore"
-
-          if [ ! -s "${GITHUB_WORKSPACE}/debug.keystore" ]; then
-            echo "ERROR: Failed to restore debug.keystore."
-            exit 1
-          fi
-
+          echo "Verifying debug keystore with keytool..."
           keytool -list \
-            -keystore "${GITHUB_WORKSPACE}/debug.keystore" \
+            -keystore "$KEYSTORE_PATH" \
             -storepass android \
             -alias androiddebugkey
 
-          echo "Debug keystore successfully restored and verified."
+          echo "Debug keystore successfully created and verified."
 
       - name: Run Unit & Robolectric Tests
         run: ./gradlew testDebugUnitTest
