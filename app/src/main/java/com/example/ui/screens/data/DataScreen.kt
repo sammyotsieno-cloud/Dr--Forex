@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.domain.engine.ValidationResult
 import com.example.domain.model.CsvColumnMapping
+import com.example.domain.model.CsvImportResult
 import com.example.domain.model.CsvInspectionResult
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MappingValidationResult
@@ -85,6 +86,7 @@ import com.example.ui.theme.PolishRose
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
+import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
@@ -260,7 +262,7 @@ fun DataScreen(
                 )
             }
 
-            // Phase 2 Milestone 2.2: CSV Column Mapping Card
+            // Phase 2 Milestone 2.2 & 2.3: CSV Column Mapping & Import Card
             if (inspection.headers.isNotEmpty() && !inspection.isFileEmpty && inspection.errorMessage == null) {
                 item {
                     CsvColumnMappingCard(
@@ -268,13 +270,25 @@ fun DataScreen(
                         mapping = state.csvColumnMapping,
                         validation = state.mappingValidationResult,
                         isConfirmed = state.isMappingConfirmed,
+                        isImporting = state.isImporting,
                         onMappingChanged = { field, selectedHeader ->
                             viewModel.updateColumnMapping(field, selectedHeader)
                         },
                         onResetToAuto = { viewModel.resetColumnMappingToAuto() },
-                        onConfirmMapping = { viewModel.confirmColumnMapping() }
+                        onConfirmMapping = { viewModel.confirmColumnMapping() },
+                        onImportData = { viewModel.importConfirmedCsv() }
                     )
                 }
+            }
+        }
+
+        // Phase 2 Milestone 2.3: CSV Import Result Card
+        state.csvImportResult?.let { importResult ->
+            item {
+                CsvImportResultCard(
+                    result = importResult,
+                    onDismiss = { viewModel.clearImportResult() }
+                )
             }
         }
 
@@ -977,9 +991,11 @@ private fun CsvColumnMappingCard(
     mapping: CsvColumnMapping,
     validation: MappingValidationResult,
     isConfirmed: Boolean,
+    isImporting: Boolean = false,
     onMappingChanged: (String, String?) -> Unit,
     onResetToAuto: () -> Unit,
-    onConfirmMapping: () -> Unit
+    onConfirmMapping: () -> Unit,
+    onImportData: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -1163,7 +1179,7 @@ private fun CsvColumnMappingCard(
                                 color = PolishEmerald
                             )
                             Text(
-                                text = "All required fields are mapped and verified. Ready for market data ingestion.",
+                                text = "All required fields are mapped and verified. Ready to import candle rows into Room database.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Slate800,
                                 fontSize = 11.sp
@@ -1289,6 +1305,228 @@ private fun CsvColumnMappingCard(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
+                }
+            }
+
+            // Import Market Data Action (Enabled when confirmed or valid)
+            if (isConfirmed || validation.isValid) {
+                Button(
+                    onClick = onImportData,
+                    enabled = !isImporting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("btn_import_candles"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Slate900,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isImporting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Importing Candles into Database...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.FileUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Import Data into Room Database",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CsvImportResultCard(
+    result: CsvImportResult,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("csv_import_result_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            if (result.isSuccess) PolishEmerald.copy(alpha = 0.6f) else PolishRose.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (result.isSuccess) PolishEmerald.copy(alpha = 0.12f) else PolishRose.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (result.isSuccess) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (result.isSuccess) PolishEmerald else PolishRose,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "IMPORT OUTCOME",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (result.isSuccess) PolishEmerald else PolishRose,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = if (result.isSuccess) "Import Succeeded" else "Import Failed",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.testTag("csv_import_status_text")
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .testTag("btn_dismiss_import_result")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss Import Summary",
+                        tint = Slate400,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Summary Message
+            Text(
+                text = result.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Slate800,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.testTag("csv_import_summary_text")
+            )
+
+            // Metrics Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Imported
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PolishEmerald.copy(alpha = 0.08f))
+                        .border(1.dp, PolishEmerald.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column {
+                        Text("Imported", style = MaterialTheme.typography.labelSmall, color = PolishEmerald, fontSize = 10.sp)
+                        Text("${result.importedCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = PolishEmerald)
+                    }
+                }
+
+                // Skipped (Duplicates)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Slate100)
+                        .border(1.dp, Slate200, RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column {
+                        Text("Skipped", style = MaterialTheme.typography.labelSmall, color = Slate600, fontSize = 10.sp)
+                        Text("${result.skippedCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Slate700)
+                    }
+                }
+
+                // Rejected Rows
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (result.rejectedCount > 0) PolishAmber.copy(alpha = 0.1f) else Slate100)
+                        .border(1.dp, if (result.rejectedCount > 0) PolishAmber.copy(alpha = 0.3f) else Slate200, RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column {
+                        Text("Rejected", style = MaterialTheme.typography.labelSmall, color = if (result.rejectedCount > 0) PolishAmber else Slate600, fontSize = 10.sp)
+                        Text("${result.rejectedCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (result.rejectedCount > 0) PolishAmber else Slate700)
+                    }
+                }
+            }
+
+            // Rejected Rows Details
+            if (result.rejectedRowErrors.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PolishAmber.copy(alpha = 0.08f))
+                        .border(1.dp, PolishAmber.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .padding(12.dp)
+                        .testTag("csv_import_rejected_rows_box"),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Rejected Rows Detail (${result.rejectedRowErrors.size}):",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PolishAmber,
+                        fontWeight = FontWeight.Bold
+                    )
+                    result.rejectedRowErrors.take(10).forEach { rejection ->
+                        Text(
+                            text = "• Row ${rejection.rowNumber}: ${rejection.reason}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate800,
+                            fontSize = 11.sp
+                        )
+                    }
+                    if (result.rejectedRowErrors.size > 10) {
+                        Text(
+                            text = "... and ${result.rejectedRowErrors.size - 10} more rejected row(s)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate500,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
         }

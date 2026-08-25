@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.DrForexDatabase
 import com.example.data.repository.DatasetRepositoryImpl
 import com.example.data.repository.SampleDataFactory
+import com.example.domain.engine.CsvCandleImporter
+import com.example.domain.engine.CsvCandleImporterImpl
 import com.example.domain.engine.CsvColumnMapper
 import com.example.domain.engine.CsvColumnMapperImpl
 import com.example.domain.engine.CsvInspector
@@ -14,6 +16,7 @@ import com.example.domain.engine.DataValidator
 import com.example.domain.engine.DataValidatorImpl
 import com.example.domain.engine.ValidationResult
 import com.example.domain.model.CsvColumnMapping
+import com.example.domain.model.CsvImportResult
 import com.example.domain.model.CsvInspectionResult
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MarketCandle
@@ -47,16 +50,21 @@ data class DataUiState(
     // Phase 2 Milestone 2.2: CSV Column Mapping
     val csvColumnMapping: CsvColumnMapping = CsvColumnMapping(),
     val mappingValidationResult: MappingValidationResult = MappingValidationResult(isValid = false),
-    val isMappingConfirmed: Boolean = false
+    val isMappingConfirmed: Boolean = false,
+    // Phase 2 Milestone 2.3: CSV Candle Import into Room
+    val selectedCsvUri: android.net.Uri? = null,
+    val isImporting: Boolean = false,
+    val csvImportResult: CsvImportResult? = null
 )
 
 class DataViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = DrForexDatabase.getDatabase(application)
-    private val datasetRepo = DatasetRepositoryImpl(db.datasetDao())
+    private val datasetRepo = DatasetRepositoryImpl(db.datasetDao(), db.candleDao())
     private val validator: DataValidator = DataValidatorImpl()
     private val csvInspector: CsvInspector = CsvInspectorImpl(validator)
     private val columnMapper: CsvColumnMapper = CsvColumnMapperImpl()
+    private val csvCandleImporter: CsvCandleImporter = CsvCandleImporterImpl(validator)
 
     val datasetsFlow: StateFlow<List<DatasetMetadata>> = datasetRepo.allDatasets
         .stateIn(
@@ -217,7 +225,9 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(
                 isInspectingCsv = true,
                 csvInspectionError = null,
-                isMappingConfirmed = false
+                isMappingConfirmed = false,
+                selectedCsvUri = uri,
+                csvImportResult = null
             )
             try {
                 val resolver = getApplication<Application>().contentResolver
@@ -236,6 +246,7 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                     csvColumnMapping = autoMapping,
                     mappingValidationResult = mappingValidation,
                     isMappingConfirmed = false,
+                    selectedCsvUri = uri,
                     statusMessage = if (result.errorMessage == null) {
                         if (mappingValidation.isValid) {
                             "Inspected '${result.fileName}' — columns automatically mapped"
@@ -318,13 +329,175 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Phase 2 Milestone 2.3: Imports the validated CSV candle rows into the Room database.
+     */
+    fun importConfirmedCsv() {
+        val uri = _uiState.value.selectedCsvUri
+        val inspection = _uiState.value.csvInspectionResult
+        val mapping = _uiState.value.csvColumnMapping
+
+        if (uri == null || inspection == null) {
+            _uiState.value = _uiState.value.copy(
+                statusMessage = "No CSV file selected for import"
+            )
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = _uiState.value.copy(isImporting = true)
+            try {
+                val resolver = getApplication<Application>().contentResolver
+                val parseResult = csvCandleImporter.parseAndValidateUri(resolver, uri, mapping)
+
+                if (parseResult.validCandles.isEmpty()) {
+                    val importResult = CsvImportResult(
+                        isSuccess = false,
+                        datasetId = "",
+                        datasetName = inspection.fileName,
+                        fileName = inspection.fileName,
+                        totalRowsRead = parseResult.totalRowsRead,
+                        importedCount = 0,
+                        skippedCount = 0,
+                        rejectedCount = parseResult.rejectedRows.size,
+                        rejectedRowErrors = parseResult.rejectedRows,
+                        summary = "Import failed: 0 valid candles found out of ${parseResult.totalRowsRead} rows"
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        isImporting = false,
+                        csvImportResult = importResult,
+                        statusMessage = "Import failed: 0 valid candles"
+                    )
+                    return@launch
+                }
+
+                // Deduce symbol and timeframe from filename
+                val baseFileName = inspection.fileName.substringBeforeLast(".")
+                val detectedSymbol = deduceSymbolFromFileName(baseFileName)
+                val detectedTimeframe = deduceTimeframeFromFileName(baseFileName)
+                val cleanSymbolForId = detectedSymbol.replace("/", "").replace("_", "").uppercase(Locale.ROOT)
+                val datasetId = "DS-$cleanSymbolForId-$detectedTimeframe-${System.currentTimeMillis() % 100000}"
+
+                val startDate = parseResult.validCandles.firstOrNull()?.timestamp ?: 0L
+                val endDate = parseResult.validCandles.lastOrNull()?.timestamp ?: 0L
+
+                val datasetMetadata = DatasetMetadata(
+                    datasetId = datasetId,
+                    name = inspection.fileName.ifBlank { "$detectedSymbol $detectedTimeframe CSV" },
+                    symbol = detectedSymbol,
+                    timeframe = detectedTimeframe,
+                    startDate = startDate,
+                    endDate = endDate,
+                    rowCount = parseResult.validCandles.size,
+                    source = "CSV: ${inspection.fileName}",
+                    timezone = "UTC",
+                    validationStatus = if (parseResult.rejectedRows.isEmpty()) ValidationStatus.VALID else ValidationStatus.VALID,
+                    isDevelopmentSample = false,
+                    validationSummary = "Imported ${parseResult.validCandles.size} candles (${parseResult.rejectedRows.size} rejected rows)"
+                )
+
+                // 1. Insert dataset metadata
+                datasetRepo.insertDataset(datasetMetadata)
+
+                // 2. Insert candle entities into Room
+                val (inserted, skipped) = datasetRepo.insertCandles(datasetId, parseResult.validCandles)
+
+                val summaryText = if (skipped > 0) {
+                    "Import complete: $inserted new candles, $skipped duplicate candles skipped, ${parseResult.rejectedRows.size} rejected rows"
+                } else {
+                    "Import complete: $inserted candles imported, ${parseResult.rejectedRows.size} rejected rows"
+                }
+
+                val importResult = CsvImportResult(
+                    isSuccess = true,
+                    datasetId = datasetId,
+                    datasetName = datasetMetadata.name,
+                    fileName = inspection.fileName,
+                    totalRowsRead = parseResult.totalRowsRead,
+                    importedCount = inserted,
+                    skippedCount = skipped,
+                    rejectedCount = parseResult.rejectedRows.size,
+                    rejectedRowErrors = parseResult.rejectedRows,
+                    summary = summaryText,
+                    startDate = startDate,
+                    endDate = endDate
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isImporting = false,
+                    csvImportResult = importResult,
+                    selectedDataset = datasetMetadata,
+                    activeCandles = parseResult.validCandles,
+                    statusMessage = summaryText
+                )
+            } catch (e: Exception) {
+                val importResult = CsvImportResult(
+                    isSuccess = false,
+                    datasetId = "",
+                    datasetName = inspection.fileName,
+                    fileName = inspection.fileName,
+                    totalRowsRead = 0,
+                    importedCount = 0,
+                    skippedCount = 0,
+                    rejectedCount = 0,
+                    rejectedRowErrors = emptyList(),
+                    summary = "Import failed: ${e.message ?: "Unknown error"}"
+                )
+                _uiState.value = _uiState.value.copy(
+                    isImporting = false,
+                    csvImportResult = importResult,
+                    statusMessage = "Import error: ${e.message}"
+                )
+            }
+        }
+    }
+
+    private fun deduceSymbolFromFileName(name: String): String {
+        val upper = name.uppercase(Locale.ROOT)
+        val knownPairs = listOf(
+            "EURUSD" to "EUR/USD",
+            "GBPUSD" to "GBP/USD",
+            "USDJPY" to "USD/JPY",
+            "USDCHF" to "USD/CHF",
+            "AUDUSD" to "AUD/USD",
+            "USDCAD" to "USD/CAD",
+            "NZDUSD" to "NZD/USD",
+            "EURGBP" to "EUR/GBP",
+            "EURJPY" to "EUR/JPY",
+            "GBPJPY" to "GBP/JPY"
+        )
+        for ((key, value) in knownPairs) {
+            if (upper.contains(key)) return value
+        }
+        return "EUR/USD"
+    }
+
+    private fun deduceTimeframeFromFileName(name: String): String {
+        val upper = name.uppercase(Locale.ROOT)
+        val timeframes = listOf("M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN")
+        for (tf in timeframes) {
+            if (upper.contains("_${tf}") || upper.contains("-$tf") || upper.contains(" $tf") || upper.endsWith(tf)) {
+                return tf
+            }
+        }
+        return "M15"
+    }
+
+    fun clearImportResult() {
+        _uiState.value = _uiState.value.copy(
+            csvImportResult = null
+        )
+    }
+
     fun clearCsvInspection() {
         _uiState.value = _uiState.value.copy(
             csvInspectionResult = null,
             csvInspectionError = null,
             csvColumnMapping = CsvColumnMapping(),
             mappingValidationResult = MappingValidationResult(isValid = false),
-            isMappingConfirmed = false
+            isMappingConfirmed = false,
+            selectedCsvUri = null,
+            csvImportResult = null
         )
     }
 
