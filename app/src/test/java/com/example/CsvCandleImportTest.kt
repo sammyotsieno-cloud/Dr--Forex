@@ -249,10 +249,58 @@ class CsvCandleImportTest {
 
     /**
      * TEST 7 — Duplicate and re-import behaviour
-     * Verify that importing the same candle twice does not create unintended duplicates in Room.
+     * Verify that importing the same candle twice into the same dataset does not create unintended duplicates in Room.
+     * 1. First import: 3 candles imported, 0 skipped.
+     * 2. Exact same CSV imported again: 0 new candles, 3 duplicates skipped.
+     * 3. Database candle count remains strictly 3.
      */
     @Test
     fun `TEST 7 - Re-importing identical candles does not duplicate records in Room`() = runBlocking {
+        val csv = """
+            Etc/UTC,Open,High,Low,Close,Volume
+            2026-08-25T01:00:00+00:00,1.16687,1.16687,1.16548,1.16557,12231860000
+            2026-08-25T05:00:00+00:00,1.16557,1.16677,1.16510,1.16673,21067200000
+            2026-08-25T09:00:00+00:00,1.16672,1.16678,1.16659,1.16674,135880000
+        """.trimIndent()
+
+        val mapping = CsvColumnMapping(
+            timestampColumn = "Etc/UTC",
+            openColumn = "Open",
+            highColumn = "High",
+            lowColumn = "Low",
+            closeColumn = "Close",
+            volumeColumn = "Volume"
+        )
+
+        // 1. First import: 3 candles imported, 0 skipped
+        val stream1 = ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8))
+        val result1 = importer.parseAndValidateRows(stream1, mapping)
+        val datasetId = "DS-EURUSD-M15-EURUSDM15"
+
+        val (inserted1, skipped1) = datasetRepository.insertCandles(datasetId, result1.validCandles)
+        assertEquals(3, inserted1)
+        assertEquals(0, skipped1)
+        assertEquals(3, datasetRepository.getCandleCountByDatasetId(datasetId))
+        assertEquals(3, inserted1 + skipped1)
+
+        // 2. Second import of exact same CSV: 0 new candles, 3 duplicates skipped
+        val stream2 = ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8))
+        val result2 = importer.parseAndValidateRows(stream2, mapping)
+        val (inserted2, skipped2) = datasetRepository.insertCandles(datasetId, result2.validCandles)
+
+        assertEquals(0, inserted2)
+        assertEquals(3, skipped2)
+        assertEquals(3, datasetRepository.getCandleCountByDatasetId(datasetId))
+        assertEquals(3, inserted2 + skipped2)
+    }
+
+    /**
+     * TEST 7b — Different dataset isolation
+     * Verify that importing candles into a different dataset does NOT suppress candles
+     * even if they share similar timestamps.
+     */
+    @Test
+    fun `TEST 7b - Different datasets preserve legitimate candles without cross-dataset suppression`() = runBlocking {
         val csv = """
             timestamp,open,high,low,close,volume
             1704067200000,1.0950,1.0980,1.0920,1.0960,100
@@ -268,23 +316,27 @@ class CsvCandleImportTest {
             volumeColumn = "volume"
         )
 
-        val stream1 = ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8))
-        val result1 = importer.parseAndValidateRows(stream1, mapping)
+        val resultA = importer.parseAndValidateRows(ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8)), mapping)
+        val resultB = importer.parseAndValidateRows(ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8)), mapping)
 
-        val datasetId = "DS-EURUSD-M15-TEST"
-        val (inserted1, skipped1) = datasetRepository.insertCandles(datasetId, result1.validCandles)
-        assertEquals(2, inserted1)
-        assertEquals(0, skipped1)
-        assertEquals(2, datasetRepository.getCandleCountByDatasetId(datasetId))
+        val datasetIdA = "DS-EURUSD-M15-SOURCEA"
+        val datasetIdB = "DS-GBPUSD-M15-SOURCEB"
 
-        // Second import of same candles
-        val stream2 = ByteArrayInputStream(csv.toByteArray(Charsets.UTF_8))
-        val result2 = importer.parseAndValidateRows(stream2, mapping)
-        val (inserted2, skipped2) = datasetRepository.insertCandles(datasetId, result2.validCandles)
+        // Insert into dataset A
+        val (insertedA, skippedA) = datasetRepository.insertCandles(datasetIdA, resultA.validCandles)
+        assertEquals(2, insertedA)
+        assertEquals(0, skippedA)
+        assertEquals(2, datasetRepository.getCandleCountByDatasetId(datasetIdA))
 
-        assertEquals(0, inserted2)
-        assertEquals(2, skipped2)
-        assertEquals(2, datasetRepository.getCandleCountByDatasetId(datasetId))
+        // Insert into dataset B
+        val (insertedB, skippedB) = datasetRepository.insertCandles(datasetIdB, resultB.validCandles)
+        assertEquals(2, insertedB)
+        assertEquals(0, skippedB)
+        assertEquals(2, datasetRepository.getCandleCountByDatasetId(datasetIdB))
+
+        // Total in dataset A remains 2, total in dataset B remains 2
+        assertEquals(2, datasetRepository.getCandlesByDatasetId(datasetIdA).size)
+        assertEquals(2, datasetRepository.getCandlesByDatasetId(datasetIdB).size)
     }
 
     /**
@@ -360,5 +412,23 @@ class CsvCandleImportTest {
         // Check chronological ordering
         assertTrue(result.validCandles[0].timestamp < result.validCandles[1].timestamp)
         assertTrue(result.validCandles[1].timestamp < result.validCandles[2].timestamp)
+    }
+
+    /**
+     * TEST 9 — Deterministic Dataset ID generation
+     * Verify that identical file names and symbol/timeframe pairs always produce
+     * the exact same dataset ID, ensuring repeated imports map to the same logical dataset.
+     */
+    @Test
+    fun `TEST 9 - Deterministic Dataset ID matches across repeated imports`() {
+        val cleanSymbol = "EUR/USD".replace("/", "").replace("_", "").replace("-", "").uppercase()
+        val baseName1 = "EURUSD_M15.csv".substringBeforeLast(".").replace(Regex("[^a-zA-Z0-9]"), "").uppercase()
+        val datasetId1 = "DS-$cleanSymbol-M15-$baseName1"
+
+        val baseName2 = "EURUSD_M15.csv".substringBeforeLast(".").replace(Regex("[^a-zA-Z0-9]"), "").uppercase()
+        val datasetId2 = "DS-$cleanSymbol-M15-$baseName2"
+
+        assertEquals(datasetId1, datasetId2)
+        assertEquals("DS-EURUSD-M15-EURUSDM15", datasetId1)
     }
 }

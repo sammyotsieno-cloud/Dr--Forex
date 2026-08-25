@@ -371,15 +371,29 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                // Deduce symbol and timeframe from filename
+                // Deduce symbol, timeframe, and deterministic dataset ID from filename
                 val baseFileName = inspection.fileName.substringBeforeLast(".")
                 val detectedSymbol = deduceSymbolFromFileName(baseFileName)
                 val detectedTimeframe = deduceTimeframeFromFileName(baseFileName)
-                val cleanSymbolForId = detectedSymbol.replace("/", "").replace("_", "").uppercase(Locale.ROOT)
-                val datasetId = "DS-$cleanSymbolForId-$detectedTimeframe-${System.currentTimeMillis() % 100000}"
+                val datasetId = generateDeterministicDatasetId(inspection.fileName, detectedSymbol, detectedTimeframe)
 
-                val startDate = parseResult.validCandles.firstOrNull()?.timestamp ?: 0L
-                val endDate = parseResult.validCandles.lastOrNull()?.timestamp ?: 0L
+                // Insert candle entities into Room with duplicate prevention (scoped to datasetId + timestamp)
+                val (inserted, skipped) = datasetRepo.insertCandles(datasetId, parseResult.validCandles)
+                val totalInDb = datasetRepo.getCandleCountByDatasetId(datasetId)
+                val allCandlesInDb = datasetRepo.getCandlesByDatasetId(datasetId)
+
+                val startDate = allCandlesInDb.firstOrNull()?.timestamp
+                    ?: parseResult.validCandles.firstOrNull()?.timestamp ?: 0L
+                val endDate = allCandlesInDb.lastOrNull()?.timestamp
+                    ?: parseResult.validCandles.lastOrNull()?.timestamp ?: 0L
+
+                val summaryText = if (inserted == 0 && skipped > 0) {
+                    "Re-import complete: 0 new candles, $skipped existing duplicate candles skipped ($totalInDb total candles in dataset)"
+                } else if (skipped > 0) {
+                    "Import complete: $inserted new candles, $skipped duplicate candles skipped, ${parseResult.rejectedRows.size} rejected rows ($totalInDb total in dataset)"
+                } else {
+                    "Import complete: $inserted candles imported, ${parseResult.rejectedRows.size} rejected rows"
+                }
 
                 val datasetMetadata = DatasetMetadata(
                     datasetId = datasetId,
@@ -388,25 +402,20 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                     timeframe = detectedTimeframe,
                     startDate = startDate,
                     endDate = endDate,
-                    rowCount = parseResult.validCandles.size,
+                    rowCount = totalInDb,
                     source = "CSV: ${inspection.fileName}",
                     timezone = "UTC",
-                    validationStatus = if (parseResult.rejectedRows.isEmpty()) ValidationStatus.VALID else ValidationStatus.VALID,
+                    validationStatus = ValidationStatus.VALID,
                     isDevelopmentSample = false,
-                    validationSummary = "Imported ${parseResult.validCandles.size} candles (${parseResult.rejectedRows.size} rejected rows)"
+                    validationSummary = if (inserted == 0 && skipped > 0) {
+                        "Re-imported: $skipped existing candles verified in Room database"
+                    } else {
+                        "Imported $totalInDb candles (${parseResult.rejectedRows.size} rejected rows)"
+                    }
                 )
 
-                // 1. Insert dataset metadata
+                // Update/Insert dataset metadata in Room
                 datasetRepo.insertDataset(datasetMetadata)
-
-                // 2. Insert candle entities into Room
-                val (inserted, skipped) = datasetRepo.insertCandles(datasetId, parseResult.validCandles)
-
-                val summaryText = if (skipped > 0) {
-                    "Import complete: $inserted new candles, $skipped duplicate candles skipped, ${parseResult.rejectedRows.size} rejected rows"
-                } else {
-                    "Import complete: $inserted candles imported, ${parseResult.rejectedRows.size} rejected rows"
-                }
 
                 val importResult = CsvImportResult(
                     isSuccess = true,
@@ -427,7 +436,7 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                     isImporting = false,
                     csvImportResult = importResult,
                     selectedDataset = datasetMetadata,
-                    activeCandles = parseResult.validCandles,
+                    activeCandles = if (allCandlesInDb.isNotEmpty()) allCandlesInDb else parseResult.validCandles,
                     statusMessage = summaryText
                 )
             } catch (e: Exception) {
@@ -481,6 +490,16 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         return "M15"
+    }
+
+    fun generateDeterministicDatasetId(fileName: String, symbol: String, timeframe: String): String {
+        val cleanSymbol = symbol.replace("/", "").replace("_", "").replace("-", "").uppercase(Locale.ROOT)
+        val baseName = fileName.substringBeforeLast(".")
+            .replace(Regex("[^a-zA-Z0-9]"), "")
+            .uppercase(Locale.ROOT)
+            .ifBlank { "DATA" }
+        val cleanTf = timeframe.uppercase(Locale.ROOT)
+        return "DS-$cleanSymbol-$cleanTf-$baseName"
     }
 
     fun clearImportResult() {
