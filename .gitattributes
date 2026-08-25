@@ -1,4 +1,5 @@
 # Git attributes for Gradle wrapper and binary assets
+# Phase 1 verified wrapper binary enforcement
 * text=auto eol=lf
 *.bat text eol=crlf
 gradlew text eol=lf
