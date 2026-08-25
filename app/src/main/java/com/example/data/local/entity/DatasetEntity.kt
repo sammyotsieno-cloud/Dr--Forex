@@ -18,7 +18,12 @@ data class DatasetEntity(
     val timezone: String,
     val validationStatus: String,
     val isDevelopmentSample: Boolean,
-    val validationSummary: String
+    val validationSummary: String,
+    val qualityScore: Int = 100,
+    val qualityClassification: String = "Excellent",
+    val gapCount: Int = 0,
+    val priceSpikeCount: Int = 0,
+    val flatlineCount: Int = 0
 ) {
     fun toDomain(): DatasetMetadata {
         val status = try {
@@ -39,7 +44,12 @@ data class DatasetEntity(
             timezone = timezone,
             validationStatus = status,
             isDevelopmentSample = isDevelopmentSample,
-            validationSummary = validationSummary
+            validationSummary = validationSummary,
+            qualityScore = qualityScore,
+            qualityClassification = qualityClassification,
+            gapCount = gapCount,
+            priceSpikeCount = priceSpikeCount,
+            flatlineCount = flatlineCount
         )
     }
 
@@ -57,7 +67,12 @@ data class DatasetEntity(
                 timezone = meta.timezone,
                 validationStatus = meta.validationStatus.name,
                 isDevelopmentSample = meta.isDevelopmentSample,
-                validationSummary = meta.validationSummary
+                validationSummary = meta.validationSummary,
+                qualityScore = meta.qualityScore,
+                qualityClassification = meta.qualityClassification,
+                gapCount = meta.gapCount,
+                priceSpikeCount = meta.priceSpikeCount,
+                flatlineCount = meta.flatlineCount
             )
         }
     }

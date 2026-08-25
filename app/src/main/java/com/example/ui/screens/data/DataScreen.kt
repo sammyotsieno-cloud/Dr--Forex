@@ -73,9 +73,15 @@ import com.example.domain.engine.ValidationResult
 import com.example.domain.model.CsvColumnMapping
 import com.example.domain.model.CsvImportResult
 import com.example.domain.model.CsvInspectionResult
+import com.example.domain.model.DataQualityClassification
+import com.example.domain.model.DataQualityReport
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MappingValidationResult
 import com.example.domain.model.ValidationStatus
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import com.example.ui.components.ScientificPrincipleBanner
 import com.example.ui.components.ValidationStatusBadge
 import com.example.ui.theme.Indigo50
@@ -288,6 +294,16 @@ fun DataScreen(
                 CsvImportResultCard(
                     result = importResult,
                     onDismiss = { viewModel.clearImportResult() }
+                )
+            }
+        }
+
+        // Phase 2 Milestone 2.4: Data Quality Inspection & Gap Detection Health Card
+        state.dataQualityReport?.let { qualityReport ->
+            item {
+                DataQualityReportCard(
+                    report = qualityReport,
+                    onDismiss = { viewModel.clearDataQualityReport() }
                 )
             }
         }
@@ -1648,6 +1664,262 @@ private fun MappingDropdownField(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Phase 2 Milestone 2.4: Research-grade Data Quality Health Card.
+ * Audits imported market series for time gaps, price spikes, flatlines, volume, and integrity.
+ */
+@Composable
+fun DataQualityReportCard(
+    report: DataQualityReport,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (statusColor, badgeBg, badgeTextColor) = when (report.qualityClassification) {
+        DataQualityClassification.EXCELLENT -> Triple(PolishEmerald, Color(0xFFDCFCE7), Color(0xFF166534))
+        DataQualityClassification.GOOD -> Triple(Indigo600, Indigo50, Indigo600)
+        DataQualityClassification.FAIR -> Triple(PolishAmber, Color(0xFFFEF3C7), Color(0xFF92400E))
+        DataQualityClassification.CRITICAL_ISSUES -> Triple(PolishRose, Color(0xFFFFE4E6), Color(0xFF9F1239))
+    }
+
+    val dateFormatter = remember {
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("data_quality_report_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, statusColor.copy(alpha = 0.4f))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header: Title, Health Badge, and Close Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(statusColor.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            tint = statusColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Data Quality Audit",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Timeframe: ${report.detectedTimeframe} · ${report.totalCandleCount} candles",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate500
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "${report.overallQualityScore}/100 · ${report.qualityClassification.displayName}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = badgeTextColor
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = Slate400,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Metrics Summary Grid
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Slate50)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    QualityMetricItem(
+                        label = "Abnormal Gaps",
+                        value = "${report.abnormalGapCount}",
+                        detail = if (report.abnormalGapCount > 0) "Max: ${report.maxAbnormalGapDurationMinutes}m" else "None",
+                        isWarning = report.abnormalGapCount > 0,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QualityMetricItem(
+                        label = "Weekend Closures",
+                        value = "${report.weekendGapCount}",
+                        detail = "Market shut",
+                        isWarning = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    QualityMetricItem(
+                        label = "Price Spikes",
+                        value = "${report.priceSpikeCount}",
+                        detail = if (report.priceSpikeCount > 0) ">5 MAD range" else "None",
+                        isWarning = report.priceSpikeCount > 0,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QualityMetricItem(
+                        label = "Flatline Streaks",
+                        value = "${report.flatlineCount}",
+                        detail = if (report.longestFlatlineStreak > 0) "Max: ${report.longestFlatlineStreak} bars" else "None",
+                        isWarning = report.flatlineCount > 0,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    QualityMetricItem(
+                        label = "Volume Status",
+                        value = if (report.isVolumeAvailable) "${report.zeroVolumeCount} zero-vol" else "Not provided",
+                        detail = if (report.isVolumeAvailable) "Max streak: ${report.zeroVolumeStreak}" else "Neutral weight",
+                        isWarning = report.isVolumeAvailable && report.zeroVolumeCount > 0,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QualityMetricItem(
+                        label = "Price Integrity",
+                        value = if (report.priceIntegrityIssueCount == 0) "Valid" else "${report.priceIntegrityIssueCount} errors",
+                        detail = "H>=L, O/C bounded",
+                        isWarning = report.priceIntegrityIssueCount > 0,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Date Range
+            if (report.firstTimestamp > 0 && report.lastTimestamp > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Coverage Range:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
+                    Text(
+                        text = "${dateFormatter.format(Date(report.firstTimestamp))} → ${dateFormatter.format(Date(report.lastTimestamp))} UTC",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        color = Slate700
+                    )
+                }
+            }
+
+            // Itemized Diagnostic Explanations
+            if (report.summaryIssues.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Diagnostic Notes:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate600
+                    )
+                    report.summaryIssues.forEach { issue ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text("•", color = if (report.overallQualityScore >= 75) Slate500 else PolishAmber, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = issue,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Slate700,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QualityMetricItem(
+    label: String,
+    value: String,
+    detail: String,
+    isWarning: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.padding(horizontal = 4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Slate500,
+            fontSize = 11.sp
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isWarning) PolishAmber else Slate800,
+                fontSize = 13.sp
+            )
+            Text(
+                text = "($detail)",
+                style = MaterialTheme.typography.bodySmall,
+                color = Slate400,
+                fontSize = 11.sp
+            )
         }
     }
 }

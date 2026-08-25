@@ -12,12 +12,15 @@ import com.example.domain.engine.CsvColumnMapper
 import com.example.domain.engine.CsvColumnMapperImpl
 import com.example.domain.engine.CsvInspector
 import com.example.domain.engine.CsvInspectorImpl
+import com.example.domain.engine.DataQualityAnalyzer
+import com.example.domain.engine.DataQualityAnalyzerImpl
 import com.example.domain.engine.DataValidator
 import com.example.domain.engine.DataValidatorImpl
 import com.example.domain.engine.ValidationResult
 import com.example.domain.model.CsvColumnMapping
 import com.example.domain.model.CsvImportResult
 import com.example.domain.model.CsvInspectionResult
+import com.example.domain.model.DataQualityReport
 import com.example.domain.model.DatasetMetadata
 import com.example.domain.model.MarketCandle
 import com.example.domain.model.MappingValidationResult
@@ -54,7 +57,9 @@ data class DataUiState(
     // Phase 2 Milestone 2.3: CSV Candle Import into Room
     val selectedCsvUri: android.net.Uri? = null,
     val isImporting: Boolean = false,
-    val csvImportResult: CsvImportResult? = null
+    val csvImportResult: CsvImportResult? = null,
+    // Phase 2 Milestone 2.4: Data Quality Inspection & Gap Detection
+    val dataQualityReport: DataQualityReport? = null
 )
 
 class DataViewModel(application: Application) : AndroidViewModel(application) {
@@ -65,6 +70,7 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     private val csvInspector: CsvInspector = CsvInspectorImpl(validator)
     private val columnMapper: CsvColumnMapper = CsvColumnMapperImpl()
     private val csvCandleImporter: CsvCandleImporter = CsvCandleImporterImpl(validator)
+    private val qualityAnalyzer: DataQualityAnalyzer = DataQualityAnalyzerImpl()
 
     val datasetsFlow: StateFlow<List<DatasetMetadata>> = datasetRepo.allDatasets
         .stateIn(
@@ -77,7 +83,23 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<DataUiState> = _uiState.asStateFlow()
 
     fun selectDataset(dataset: DatasetMetadata) {
-        _uiState.value = _uiState.value.copy(selectedDataset = dataset)
+        viewModelScope.launch(Dispatchers.IO) {
+            val candles = datasetRepo.getCandlesByDatasetId(dataset.datasetId)
+            val report = if (candles.isNotEmpty()) {
+                qualityAnalyzer.analyzeQuality(dataset.datasetId, candles)
+            } else if (dataset.isDevelopmentSample) {
+                val sampleCandles = SampleDataFactory.createSampleCandles()
+                qualityAnalyzer.analyzeQuality(dataset.datasetId, sampleCandles)
+            } else {
+                null
+            }
+
+            _uiState.value = _uiState.value.copy(
+                selectedDataset = dataset,
+                activeCandles = if (candles.isNotEmpty()) candles else _uiState.value.activeCandles,
+                dataQualityReport = report
+            )
+        }
     }
 
     fun openImportDialog() {
@@ -104,15 +126,26 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val sampleCandles = SampleDataFactory.createSampleCandles()
             val meta = SampleDataFactory.sampleDatasetMetadata
-            datasetRepo.insertDataset(meta)
+            val qualityReport = qualityAnalyzer.analyzeQuality(meta.datasetId, sampleCandles)
+
+            val enrichedMeta = meta.copy(
+                timeframe = qualityReport.detectedTimeframe,
+                qualityScore = qualityReport.overallQualityScore,
+                qualityClassification = qualityReport.qualityClassification.displayName,
+                gapCount = qualityReport.abnormalGapCount,
+                priceSpikeCount = qualityReport.priceSpikeCount,
+                flatlineCount = qualityReport.flatlineCount
+            )
+            datasetRepo.insertDataset(enrichedMeta)
 
             val validation = validator.validateCandles(sampleCandles)
 
             _uiState.value = _uiState.value.copy(
-                selectedDataset = meta,
+                selectedDataset = enrichedMeta,
                 activeCandles = sampleCandles,
                 validationResult = validation,
-                statusMessage = "Loaded Development Sample (100 candles)"
+                dataQualityReport = qualityReport,
+                statusMessage = "Loaded Development Sample (100 candles · Quality ${qualityReport.overallQualityScore}/100)"
             )
         }
     }
@@ -381,11 +414,13 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                 val (inserted, skipped) = datasetRepo.insertCandles(datasetId, parseResult.validCandles)
                 val totalInDb = datasetRepo.getCandleCountByDatasetId(datasetId)
                 val allCandlesInDb = datasetRepo.getCandlesByDatasetId(datasetId)
+                val finalCandles = if (allCandlesInDb.isNotEmpty()) allCandlesInDb else parseResult.validCandles
 
-                val startDate = allCandlesInDb.firstOrNull()?.timestamp
-                    ?: parseResult.validCandles.firstOrNull()?.timestamp ?: 0L
-                val endDate = allCandlesInDb.lastOrNull()?.timestamp
-                    ?: parseResult.validCandles.lastOrNull()?.timestamp ?: 0L
+                val startDate = finalCandles.firstOrNull()?.timestamp ?: 0L
+                val endDate = finalCandles.lastOrNull()?.timestamp ?: 0L
+
+                // Run research-grade Data Quality Analysis on the complete persisted candle series
+                val qualityReport = qualityAnalyzer.analyzeQuality(datasetId, finalCandles)
 
                 val summaryText = if (inserted == 0 && skipped > 0) {
                     "Re-import complete: 0 new candles, $skipped existing duplicate candles skipped ($totalInDb total candles in dataset)"
@@ -397,21 +432,26 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
 
                 val datasetMetadata = DatasetMetadata(
                     datasetId = datasetId,
-                    name = inspection.fileName.ifBlank { "$detectedSymbol $detectedTimeframe CSV" },
+                    name = inspection.fileName.ifBlank { "$detectedSymbol ${qualityReport.detectedTimeframe} CSV" },
                     symbol = detectedSymbol,
-                    timeframe = detectedTimeframe,
+                    timeframe = qualityReport.detectedTimeframe,
                     startDate = startDate,
                     endDate = endDate,
                     rowCount = totalInDb,
                     source = "CSV: ${inspection.fileName}",
                     timezone = "UTC",
-                    validationStatus = ValidationStatus.VALID,
+                    validationStatus = if (qualityReport.overallQualityScore >= 50) ValidationStatus.VALID else ValidationStatus.WARNINGS_FOUND,
                     isDevelopmentSample = false,
                     validationSummary = if (inserted == 0 && skipped > 0) {
-                        "Re-imported: $skipped existing candles verified in Room database"
+                        "Re-imported: $skipped existing candles verified (Quality: ${qualityReport.overallQualityScore}/100 · ${qualityReport.qualityClassification.displayName})"
                     } else {
-                        "Imported $totalInDb candles (${parseResult.rejectedRows.size} rejected rows)"
-                    }
+                        "Quality ${qualityReport.overallQualityScore}/100 (${qualityReport.qualityClassification.displayName}): $totalInDb candles, ${qualityReport.abnormalGapCount} abnormal gap(s)"
+                    },
+                    qualityScore = qualityReport.overallQualityScore,
+                    qualityClassification = qualityReport.qualityClassification.displayName,
+                    gapCount = qualityReport.abnormalGapCount,
+                    priceSpikeCount = qualityReport.priceSpikeCount,
+                    flatlineCount = qualityReport.flatlineCount
                 )
 
                 // Update/Insert dataset metadata in Room
@@ -436,7 +476,8 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
                     isImporting = false,
                     csvImportResult = importResult,
                     selectedDataset = datasetMetadata,
-                    activeCandles = if (allCandlesInDb.isNotEmpty()) allCandlesInDb else parseResult.validCandles,
+                    activeCandles = finalCandles,
+                    dataQualityReport = qualityReport,
                     statusMessage = summaryText
                 )
             } catch (e: Exception) {
@@ -505,6 +546,12 @@ class DataViewModel(application: Application) : AndroidViewModel(application) {
     fun clearImportResult() {
         _uiState.value = _uiState.value.copy(
             csvImportResult = null
+        )
+    }
+
+    fun clearDataQualityReport() {
+        _uiState.value = _uiState.value.copy(
+            dataQualityReport = null
         )
     }
 

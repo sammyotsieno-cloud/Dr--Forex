@@ -22,5 +22,10 @@ data class DatasetMetadata(
     val timezone: String = "UTC",
     val validationStatus: ValidationStatus = ValidationStatus.UNCHECKED,
     val isDevelopmentSample: Boolean = false,
-    val validationSummary: String = "Not validated"
+    val validationSummary: String = "Not validated",
+    val qualityScore: Int = 100,
+    val qualityClassification: String = "Excellent",
+    val gapCount: Int = 0,
+    val priceSpikeCount: Int = 0,
+    val flatlineCount: Int = 0
 )
