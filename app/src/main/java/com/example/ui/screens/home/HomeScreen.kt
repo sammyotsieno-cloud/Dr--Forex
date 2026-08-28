@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,6 +67,7 @@ import com.example.ui.theme.Slate900
 
 @Composable
 fun HomeScreen(
+    onNavigateToAiTrader: () -> Unit = {},
     onNavigateToResearch: () -> Unit,
     onNavigateToData: () -> Unit,
     onNavigateToExperiments: () -> Unit,
@@ -103,7 +105,7 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "QUANTITATIVE RESEARCH LABORATORY",
+                    text = "AI MARKET LEARNING PLATFORM",
                     style = MaterialTheme.typography.labelSmall,
                     color = Indigo600,
                     fontWeight = FontWeight.Bold,
@@ -126,6 +128,61 @@ fun HomeScreen(
                         .clip(CircleShape)
                         .background(PolishEmerald)
                 )
+            }
+        }
+
+        // AI Market Analyst & Voice Hero Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .clickable { onNavigateToAiTrader() }
+                .testTag("home_ai_trader_hero"),
+            colors = CardDefaults.cardColors(containerColor = Slate900),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "✨ AI VOICE & REASONING LAB",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Indigo50,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Talk to Dr. Forex Analyst",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Interactive voice bot, 'Explain like I'm 3', market predictions & learning memory.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate300,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Button(
+                    onClick = { onNavigateToAiTrader() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Indigo600),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text("Open Lab", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
             }
         }
 

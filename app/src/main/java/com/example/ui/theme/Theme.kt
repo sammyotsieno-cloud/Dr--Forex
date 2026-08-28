@@ -7,58 +7,70 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Indigo500,
+enum class AppThemeMode {
+    SYSTEM,
+    DARK,
+    LIGHT
+}
+
+private val DarkPurpleColorScheme = darkColorScheme(
+    primary = PurpleAccent,
     onPrimary = Color.White,
-    primaryContainer = Indigo900,
-    onPrimaryContainer = Indigo100,
-    secondary = Indigo400,
-    onSecondary = Slate950,
-    secondaryContainer = Slate800,
-    onSecondaryContainer = Slate100,
-    tertiary = PolishAmber,
-    onTertiary = Slate950,
-    background = Slate900,
-    onBackground = Slate50,
-    surface = Slate800,
-    onSurface = Slate50,
-    surfaceVariant = Slate700,
-    onSurfaceVariant = Slate300,
-    outline = Slate600,
-    outlineVariant = Slate700,
-    error = PolishRose,
+    primaryContainer = Purple900,
+    onPrimaryContainer = Purple100,
+    secondary = CyanNeon,
+    onSecondary = DarkPurpleBackground,
+    secondaryContainer = DarkPurpleSurfaceVariant,
+    onSecondaryContainer = Color.White,
+    tertiary = AmberNeon,
+    onTertiary = DarkPurpleBackground,
+    background = DarkPurpleBackground,
+    onBackground = Purple50,
+    surface = DarkPurpleSurface,
+    onSurface = Purple50,
+    surfaceVariant = DarkPurpleSurfaceVariant,
+    onSurfaceVariant = Purple100,
+    outline = DarkPurpleBorder,
+    outlineVariant = DarkPurpleHighlight,
+    error = RoseNeon,
     onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Indigo600,
+    primary = PurplePrimary,
     onPrimary = Color.White,
-    primaryContainer = Indigo50,
-    onPrimaryContainer = Indigo700,
-    secondary = Slate800,
+    primaryContainer = Purple100,
+    onPrimaryContainer = Purple900,
+    secondary = CyanNeon,
     onSecondary = Color.White,
-    secondaryContainer = Slate100,
-    onSecondaryContainer = Slate900,
-    tertiary = PolishAmber,
+    secondaryContainer = Purple50,
+    onSecondaryContainer = DarkPurpleSurface,
+    tertiary = AmberNeon,
     onTertiary = Color.White,
-    background = Slate50,
-    onBackground = Slate900,
+    background = Color(0xFFFBF8FF),
+    onBackground = Color(0xFF1E1035),
     surface = Color.White,
-    onSurface = Slate900,
-    surfaceVariant = Color.White,
-    onSurfaceVariant = Slate600,
-    outline = Slate200,
-    outlineVariant = Slate100,
+    onSurface = Color(0xFF1E1035),
+    surfaceVariant = Color(0xFFF3E8FF),
+    onSurfaceVariant = Color(0xFF4C2882),
+    outline = Color(0xFFE9D5FF),
+    outlineVariant = Color(0xFFF3E8FF),
     error = PolishRose,
     onError = Color.White
 )
 
 @Composable
 fun DrForexTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: AppThemeMode = AppThemeMode.DARK,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val darkTheme = when (themeMode) {
+        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+        AppThemeMode.DARK -> true
+        AppThemeMode.LIGHT -> false
+    }
+
+    val colorScheme = if (darkTheme) DarkPurpleColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -66,4 +78,5 @@ fun DrForexTheme(
         content = content
     )
 }
+
 
