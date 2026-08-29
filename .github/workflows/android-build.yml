@@ -1,12 +1,6 @@
-name: Android CI / Phase 1 Build & Test
+name: DrForex Manual Build & Test
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
