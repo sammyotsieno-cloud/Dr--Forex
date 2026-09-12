@@ -14,8 +14,19 @@ class MarketContextAnalyzerTest {
 
     @Test
     fun `analysis is point in time safe`() {
+        val instrument =
+            MarketInstrument.forex(
+                baseCurrency = "EUR",
+                quoteCurrency = "USD"
+            )
+
+        val timeframe =
+            MarketTimeframe.M15
+
         val candles = listOf(
             candle(
+                instrument = instrument,
+                timeframe = timeframe,
                 openTime = "2026-01-01T10:00:00Z",
                 open = 1.1000,
                 high = 1.1010,
@@ -23,6 +34,8 @@ class MarketContextAnalyzerTest {
                 close = 1.1005
             ),
             candle(
+                instrument = instrument,
+                timeframe = timeframe,
                 openTime = "2026-01-01T10:15:00Z",
                 open = 1.1005,
                 high = 1.1025,
@@ -30,6 +43,8 @@ class MarketContextAnalyzerTest {
                 close = 1.1020
             ),
             candle(
+                instrument = instrument,
+                timeframe = timeframe,
                 openTime = "2026-01-01T10:30:00Z",
                 open = 1.1020,
                 high = 1.1030,
@@ -38,7 +53,12 @@ class MarketContextAnalyzerTest {
             )
         )
 
-        val series = MarketSeries(candles)
+        val series =
+            MarketSeries(
+                instrument = instrument,
+                timeframe = timeframe,
+                candles = candles
+            )
 
         val asOf =
             MarketTime(
@@ -80,8 +100,21 @@ class MarketContextAnalyzerTest {
 
     @Test
     fun `empty series produces empty structural context`() {
+        val instrument =
+            MarketInstrument.forex(
+                baseCurrency = "EUR",
+                quoteCurrency = "USD"
+            )
+
+        val timeframe =
+            MarketTimeframe.M15
+
         val series =
-            MarketSeries(emptyList())
+            MarketSeries(
+                instrument = instrument,
+                timeframe = timeframe,
+                candles = emptyList()
+            )
 
         val asOf =
             MarketTime(
@@ -128,12 +161,15 @@ class MarketContextAnalyzerTest {
     }
 
     private fun candle(
+        instrument: MarketInstrument,
+        timeframe: MarketTimeframe,
         openTime: String,
         open: Double,
         high: Double,
         low: Double,
         close: Double
     ): MarketCandle {
+
         val openInstant =
             Instant.parse(openTime)
 
@@ -141,11 +177,8 @@ class MarketContextAnalyzerTest {
             openInstant.plusSeconds(15 * 60)
 
         return MarketCandle(
-            instrument = MarketInstrument.forex(
-                baseCurrency = "EUR",
-                quoteCurrency = "USD"
-            ),
-            timeframe = MarketTimeframe.M15,
+            instrument = instrument,
+            timeframe = timeframe,
             openTime = MarketTime(openInstant),
             closeTime = MarketTime(closeInstant),
             open = open,
