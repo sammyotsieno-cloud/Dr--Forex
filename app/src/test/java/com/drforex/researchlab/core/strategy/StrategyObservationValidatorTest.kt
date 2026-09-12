@@ -21,12 +21,10 @@ class StrategyObservationValidatorTest {
 
     @Test
     fun `observation with no values is rejected`() {
-        val observation = StrategyObservation(
+        val result = validator.validate(
             observedAt = observedAt(),
             values = mapOf()
         )
-
-        val result = validator.validate(observation)
 
         assertEquals(
             StrategyObservationValidation.Invalid(
@@ -40,14 +38,12 @@ class StrategyObservationValidatorTest {
 
     @Test
     fun `observation with blank variable name is rejected`() {
-        val observation = StrategyObservation(
+        val result = validator.validate(
             observedAt = observedAt(),
             values = mapOf(
                 "" to 1.1050
             )
         )
-
-        val result = validator.validate(observation)
 
         assertEquals(
             StrategyObservationValidation.Invalid(
@@ -61,14 +57,12 @@ class StrategyObservationValidatorTest {
 
     @Test
     fun `observation with non finite value is rejected`() {
-        val observation = StrategyObservation(
+        val result = validator.validate(
             observedAt = observedAt(),
             values = mapOf(
                 "close" to Double.NaN
             )
         )
-
-        val result = validator.validate(observation)
 
         assertEquals(
             StrategyObservationValidation.Invalid(
@@ -82,14 +76,12 @@ class StrategyObservationValidatorTest {
 
     @Test
     fun `observation with multiple invalid values reports all errors`() {
-        val observation = StrategyObservation(
+        val result = validator.validate(
             observedAt = observedAt(),
             values = mapOf(
                 "" to Double.POSITIVE_INFINITY
             )
         )
-
-        val result = validator.validate(observation)
 
         assertEquals(
             StrategyObservationValidation.Invalid(
@@ -99,6 +91,30 @@ class StrategyObservationValidatorTest {
                 )
             ),
             result
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `StrategyObservation constructor rejects empty values`() {
+        StrategyObservation(
+            observedAt = observedAt(),
+            values = mapOf()
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `StrategyObservation constructor rejects blank variable names`() {
+        StrategyObservation(
+            observedAt = observedAt(),
+            values = mapOf("" to 1.1050)
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `StrategyObservation constructor rejects non-finite values`() {
+        StrategyObservation(
+            observedAt = observedAt(),
+            values = mapOf("close" to Double.NaN)
         )
     }
 

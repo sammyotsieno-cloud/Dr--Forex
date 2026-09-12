@@ -12,19 +12,19 @@ package com.drforex.researchlab.core.strategy
 class StrategyObservationValidator {
 
     fun validate(
-        observation: StrategyObservation
+        values: Map<String, Double>
     ): StrategyObservationValidation {
         val errors = mutableListOf<String>()
 
-        if (observation.values.isEmpty()) {
+        if (values.isEmpty()) {
             errors += "Strategy observation must contain at least one value."
         }
 
-        if (observation.values.keys.any { it.isBlank() }) {
+        if (values.keys.any { it.isBlank() }) {
             errors += "Strategy observation variable names must not be blank."
         }
 
-        if (observation.values.values.any { !it.isFinite() }) {
+        if (values.values.any { !it.isFinite() }) {
             errors += "Strategy observation values must be finite."
         }
 
@@ -33,6 +33,19 @@ class StrategyObservationValidator {
         } else {
             StrategyObservationValidation.Invalid(errors)
         }
+    }
+
+    fun validate(
+        observedAt: com.drforex.researchlab.core.time.MarketTime,
+        values: Map<String, Double>
+    ): StrategyObservationValidation {
+        return validate(values)
+    }
+
+    fun validate(
+        observation: StrategyObservation
+    ): StrategyObservationValidation {
+        return validate(observation.values)
     }
 }
 
