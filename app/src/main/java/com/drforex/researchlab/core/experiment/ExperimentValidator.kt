@@ -2,15 +2,24 @@ package com.drforex.researchlab.core.experiment
 
 import com.drforex.researchlab.core.research.ResearchHypothesis
 import com.drforex.researchlab.core.research.ResearchQuestion
+import com.drforex.researchlab.core.research.ResearchQuestionEngine
 
 /**
  * Validates the structural and temporal integrity of a research experiment.
  *
- * ExperimentValidator is a safety boundary between experiment definition,
- * execution, and later analysis.
+ * ExperimentValidator is the validation boundary between:
+ * - research definition
+ * - experiment definition
+ * - experiment execution
+ * - experiment results
+ *
+ * Upstream research-question and hypothesis validation remains owned by
+ * ResearchQuestionEngine. ExperimentValidator delegates that validation
+ * rather than duplicating its rules.
  *
  * It does not:
  * - execute an experiment
+ * - load market data
  * - calculate indicators
  * - calculate statistical significance
  * - evaluate profitability
@@ -18,10 +27,23 @@ import com.drforex.researchlab.core.research.ResearchQuestion
  * - generate trading signals
  * - produce forecasts
  */
-class ExperimentValidator {
+class ExperimentValidator(
+    private val researchQuestionEngine: ResearchQuestionEngine =
+        ResearchQuestionEngine()
+) {
 
     /**
      * Validates the complete experiment definition.
+     *
+     * This includes:
+     * - research question and hypothesis validity
+     * - question/hypothesis/experiment relationships
+     * - hypothesis variable coverage
+     * - experiment conditions
+     * - experiment design
+     * - temporal data boundaries
+     * - information cutoff
+     * - procedure structure
      */
     fun validateDefinition(
         question: ResearchQuestion,
@@ -31,7 +53,21 @@ class ExperimentValidator {
         dataScope: ExperimentDataScope,
         procedure: ExperimentProcedure
     ): ExperimentValidation {
+
         val errors = mutableListOf<String>()
+
+        val researchDefinitionValidation =
+            researchQuestionEngine.validate(
+                question = question,
+                hypothesis = hypothesis
+            )
+
+        if (
+            researchDefinitionValidation is
+            ResearchQuestionEngine.ResearchDefinitionValidation.Invalid
+        ) {
+            errors += researchDefinitionValidation.errors
+        }
 
         if (experiment.questionId != question.id) {
             errors +=
@@ -48,24 +84,33 @@ class ExperimentValidator {
                 "Hypothesis question id must match the supplied research question."
         }
 
-        val experimentVariables =
+        val experimentVariableNames =
             experiment.variables.map { it.name }.toSet()
 
-        if (!experimentVariables.containsAll(hypothesis.independentVariables)) {
+        val requiredIndependentVariables =
+            hypothesis.independentVariables.toSet()
+
+        val missingIndependentVariables =
+            requiredIndependentVariables - experimentVariableNames
+
+        if (missingIndependentVariables.isNotEmpty()) {
             errors +=
-                "Experiment must include all independent variables declared by the hypothesis."
+                "Experiment is missing hypothesis independent variables: " +
+                    missingIndependentVariables.joinToString(", ")
         }
 
-        if (hypothesis.dependentVariable !in experimentVariables) {
+        if (hypothesis.dependentVariable !in experimentVariableNames) {
             errors +=
-                "Experiment must include the dependent variable declared by the hypothesis."
+                "Experiment is missing the hypothesis dependent variable: " +
+                    hypothesis.dependentVariable
         }
 
-        if (experiment.conditions.map { it.name }.distinct().size !=
-            experiment.conditions.size
-        ) {
+        val conditionNames =
+            experiment.conditions.map { it.name }
+
+        if (conditionNames.size != conditionNames.toSet().size) {
             errors +=
-                "Experiment conditions must have unique names."
+                "Experiment condition names must be unique."
         }
 
         if (design.repetitions <= 0) {
@@ -73,11 +118,12 @@ class ExperimentValidator {
                 "Experiment repetitions must be greater than zero."
         }
 
-        if (design.comparison != ExperimentComparison.NONE &&
+        if (
+            design.comparison != ExperimentComparison.NONE &&
             design.baseline == null
         ) {
             errors +=
-                "A comparison design must define a baseline."
+                "A baseline is required when the experiment uses a comparison."
         }
 
         if (dataScope.startTime.instant > dataScope.endTime.instant) {
@@ -85,17 +131,14 @@ class ExperimentValidator {
                 "Experiment data scope start time must not be after end time."
         }
 
-        if (dataScope.informationCutoff != null) {
-            if (dataScope.informationCutoff.instant <
-                dataScope.startTime.instant
-            ) {
+        dataScope.informationCutoff?.let { cutoff ->
+
+            if (cutoff.instant < dataScope.startTime.instant) {
                 errors +=
                     "Information cutoff must not precede the experiment start."
             }
 
-            if (dataScope.informationCutoff.instant >
-                dataScope.endTime.instant
-            ) {
+            if (cutoff.instant > dataScope.endTime.instant) {
                 errors +=
                     "Information cutoff must not exceed the experiment end."
             }
@@ -106,16 +149,15 @@ class ExperimentValidator {
                 "Experiment procedure must contain at least one step."
         }
 
-        if (procedure.steps.map { it.order }.distinct().size !=
-            procedure.steps.size
-        ) {
+        val stepOrders =
+            procedure.steps.map { it.order }
+
+        if (stepOrders.size != stepOrders.toSet().size) {
             errors +=
                 "Experiment procedure step orders must be unique."
         }
 
-        if (procedure.steps.map { it.order }.sorted() !=
-            procedure.steps.map { it.order }
-        ) {
+        if (stepOrders != stepOrders.sorted()) {
             errors +=
                 "Experiment procedure steps must be in ascending order."
         }
@@ -130,84 +172,95 @@ class ExperimentValidator {
     /**
      * Validates an experiment result against its declared data boundary.
      *
-     * Observations must remain inside the experiment's permitted temporal
-     * scope. This prevents a result from containing observations outside
-     * the experiment definition.
+     * This protects the temporal integrity of experiment observations and
+     * prevents observations from entering the result outside the declared
+     * experiment scope or information cutoff.
      */
     fun validateResult(
         experiment: ResearchExperiment,
         dataScope: ExperimentDataScope,
         result: ExperimentResult
     ): ExperimentValidation {
+
         val errors = mutableListOf<String>()
 
         if (result.experimentId != experiment.id) {
             errors +=
-                "Experiment result id must match the supplied experiment."
+                "Experiment result experimentId must match the experiment id."
         }
 
-        if (result.completedAt != null &&
+        if (
+            result.completedAt != null &&
             result.completedAt.instant < result.startedAt.instant
         ) {
             errors +=
                 "Experiment completion time must not precede experiment start."
         }
 
-        val observations = result.observations
+        val sequences =
+            result.observations.map { it.sequence }
 
-        val sequences = observations.map { it.sequence }
-
-        if (sequences.distinct().size != sequences.size) {
+        if (sequences.size != sequences.toSet().size) {
             errors +=
                 "Experiment observation sequence numbers must be unique."
         }
 
         if (sequences != sequences.sorted()) {
             errors +=
-                "Experiment observations must be ordered by sequence."
+                "Experiment observations must be ordered by sequence number."
         }
 
         val observationTimes =
-            observations.map { it.observedAt.instant }
+            result.observations.map { it.observedAt.instant }
 
         if (observationTimes != observationTimes.sorted()) {
             errors +=
-                "Experiment observations must be in chronological order."
+                "Experiment observations must be ordered chronologically."
         }
 
-        observations.forEach { observation ->
-            if (observation.observedAt.instant <
+        result.observations.forEach { observation ->
+
+            if (
+                observation.observedAt.instant <
                 dataScope.startTime.instant
             ) {
                 errors +=
-                    "Experiment observation occurs before the data scope."
+                    "Experiment observation ${observation.sequence} " +
+                        "occurs before the data scope."
             }
 
-            if (observation.observedAt.instant >
+            if (
+                observation.observedAt.instant >
                 dataScope.endTime.instant
             ) {
                 errors +=
-                    "Experiment observation occurs after the data scope."
+                    "Experiment observation ${observation.sequence} " +
+                        "occurs after the data scope."
             }
 
-            val cutoff = dataScope.informationCutoff
+            dataScope.informationCutoff?.let { cutoff ->
 
-            if (cutoff != null &&
-                observation.observedAt.instant > cutoff.instant
-            ) {
-                errors +=
-                    "Experiment observation occurs after the information cutoff."
+                if (
+                    observation.observedAt.instant >
+                    cutoff.instant
+                ) {
+                    errors +=
+                        "Experiment observation ${observation.sequence} " +
+                            "occurs after the information cutoff."
+                }
             }
         }
 
-        if (result.status == ExperimentResultStatus.COMPLETED &&
+        if (
+            result.status == ExperimentResultStatus.COMPLETED &&
             result.completedAt == null
         ) {
             errors +=
                 "A completed experiment result must have a completion time."
         }
 
-        if (result.status == ExperimentResultStatus.FAILED &&
+        if (
+            result.status == ExperimentResultStatus.FAILED &&
             result.errors.isEmpty()
         ) {
             errors +=
@@ -228,7 +281,7 @@ class ExperimentValidator {
 sealed class ExperimentValidation {
 
     /**
-     * The experiment satisfies the validation rules.
+     * The experiment satisfies all validation rules.
      */
     data object Valid : ExperimentValidation()
 
