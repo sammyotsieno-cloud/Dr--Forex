@@ -34,34 +34,57 @@ import com.drforex.researchlab.core.time.MarketTime
   /**
   
   * Returns only evidence that was already observable at [time].
+  
+  * 
+  
+  * Point-in-time projection must never expose structural or event
+  
+  * information that was confirmed after the requested time.
+  
+  * 
+  
+  * The context cannot manufacture evidence beyond the snapshot from
+  
+  * which it was created. Therefore [asOf] remains bounded by the
+  
+  * original context timestamp when [time] is later than this context.
     */
     fun knownAt(time: MarketTime): MarketContext =
     copy(
-    asOf = time,
-    recentBreaks =
-    recentBreaks.filter {
-    it.confirmationTime.isAtOrBefore(time)
-    },
-    recentChangeOfCharacters =
-    recentChangeOfCharacters.filter {
-    it.confirmationTime.isAtOrBefore(time)
-    },
-    supportResistanceZones =
-    supportResistanceZones.filter {
-    it.isKnownAt(time)
-    },
-    liquidityEvents =
-    liquidityEvents.filter {
-    it.isKnownAt(time)
-    },
-    fairValueGaps =
-    fairValueGaps.filter {
-    it.isKnownAt(time)
-    },
-    displacements =
-    displacements.filter {
-    it.isKnownAt(time)
-    }
+    asOf = if (asOf.isBefore(time)) asOf else time,
+    
+     structure = structure?.knownAt(time),
+
+ recentBreaks =
+     recentBreaks.filter {
+         it.confirmationTime.isAtOrBefore(time)
+     },
+
+ recentChangeOfCharacters =
+     recentChangeOfCharacters.filter {
+         it.confirmationTime.isAtOrBefore(time)
+     },
+
+ supportResistanceZones =
+     supportResistanceZones.filter {
+         it.isKnownAt(time)
+     },
+
+ liquidityEvents =
+     liquidityEvents.filter {
+         it.isKnownAt(time)
+     },
+
+ fairValueGaps =
+     fairValueGaps.filter {
+         it.isKnownAt(time)
+     },
+
+ displacements =
+     displacements.filter {
+         it.isKnownAt(time)
+     }
+    
     )
   
   /**
@@ -117,4 +140,4 @@ import com.drforex.researchlab.core.time.MarketTime
     fairValueGaps.filter {
     it.contains(price)
     }
-    }
+  }
