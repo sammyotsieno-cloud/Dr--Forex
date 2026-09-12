@@ -4,242 +4,295 @@ import com.drforex.researchlab.core.market.MarketSeries
 import com.drforex.researchlab.core.time.MarketTime
 
 /**
+ * Detects confirmed Changes of Character (CHoCH) using only information
+ * that was available at the time of the structural event.
+ *
+ * Forex interpretation:
+ *
+ * - In bullish structure, a CHoCH occurs when price closes below the
+ *   relevant protected Higher Low.
+ * - In bearish structure, a CHoCH occurs when price closes above the
+ *   relevant protected Lower High.
+ *
+ * CHoCH represents a potential structural change. It is an observable
+ * market event, not a trading signal.
+ */
+class ChangeOfCharacterDetector(
+    private val swingPointDetector: SwingPointDetector = SwingPointDetector()
+) {
 
-* Detects structural transitions using confirmed market structure.
+    fun detect(
+        series: MarketSeries,
+        asOf: MarketTime,
+        leftBars: Int = 2,
+        rightBars: Int = 2
+    ): List<ChangeOfCharacter> {
 
-* 
+        val candles = series
+            .availableAt(asOf)
+            .sortedBy { it.closeTime.instant }
 
-* CHoCH is generated only when a previously established structural
+        if (candles.isEmpty()) {
+            return emptyList()
+        }
 
-* direction is contradicted by a confirmed break of the opposing
+        val swings = swingPointDetector
+            .detect(
+                series = series,
+                asOf = asOf,
+                leftBars = leftBars,
+                rightBars = rightBars
+            )
+            .filter { it.isConfirmedAt(asOf) }
+            .sortedBy { it.confirmationTime.instant }
 
-* structural level.
+        if (swings.size < 3) {
+            return emptyList()
+        }
 
-* 
+        val classified = classifySwings(swings)
 
-* This detector does not generate trading signals.
-  */
-  class ChangeOfCharacterDetector(
-  private val swingPointDetector: SwingPointDetector = SwingPointDetector()
-  ) {
-  
-  fun detect(
-  series: MarketSeries,
-  asOf: MarketTime,
-  leftBars: Int = 2,
-  rightBars: Int = 2
-  ): List<ChangeOfCharacter> {
-  
-   val candles = series.availableAt(asOf)
+        val events = mutableListOf<ChangeOfCharacter>()
 
- if (candles.isEmpty()) {
-     return emptyList()
- }
+        var structuralDirection = StructureDirection.UNKNOWN
+        var protectedPoint: StructurePoint? = null
 
- val swings =
-     swingPointDetector
-         .detect(
-             series = series,
-             asOf = asOf,
-             leftBars = leftBars,
-             rightBars = rightBars
-         )
-         .filter { it.isConfirmedAt(asOf) }
-         .sortedBy { it.time.instant }
+        var swingIndex = 0
 
- if (swings.size < 3) {
-     return emptyList()
- }
+        for (candle in candles) {
 
- val events = mutableListOf<ChangeOfCharacter>()
+            while (
+                swingIndex < classified.size &&
+                !classified[swingIndex]
+                    .swing
+                    .confirmationTime
+                    .isAfter(candle.closeTime)
+            ) {
+                val point = classified[swingIndex]
 
- var previousDirection = StructureDirection.UNKNOWN
+                val newDirection =
+                    determineDirectionAtPoint(
+                        points = classified,
+                        index = swingIndex
+                    )
 
- val classified =
-     classifySwings(swings)
+                if (newDirection != StructureDirection.UNKNOWN &&
+                    newDirection != StructureDirection.TRANSITION
+                ) {
+                    structuralDirection = newDirection
+                }
 
- for (index in classified.indices) {
+                protectedPoint =
+                    when (structuralDirection) {
 
-     val current = classified[index]
+                        StructureDirection.BULLISH ->
+                            if (
+                                point.classification ==
+                                    StructureClassification.HIGHER_LOW
+                            ) {
+                                point
+                            } else {
+                                protectedPoint
+                            }
 
-     val currentDirection =
-         directionAfterPoint(
-             points = classified,
-             index = index
-         )
+                        StructureDirection.BEARISH ->
+                            if (
+                                point.classification ==
+                                    StructureClassification.LOWER_HIGH
+                            ) {
+                                point
+                            } else {
+                                protectedPoint
+                            }
 
-     if (
-         previousDirection != StructureDirection.UNKNOWN &&
-         currentDirection != StructureDirection.UNKNOWN &&
-         currentDirection != previousDirection
-     ) {
+                        else ->
+                            protectedPoint
+                    }
 
-         val breakIndex =
-             candles.indexOfFirst { candle ->
+                swingIndex++
+            }
 
-                 if (
-                     candle.closeTime
-                         .isBefore(current.swing.confirmationTime)
-                 ) {
-                     false
-                 } else {
-                     when (current.swing.type) {
+            val protected = protectedPoint
+                ?: continue
 
-                         SwingPointType.HIGH ->
-                             candle.close > current.swing.price
+            if (
+                candle.closeTime
+                    .isBefore(protected.swing.confirmationTime)
+            ) {
+                continue
+            }
 
-                         SwingPointType.LOW ->
-                             candle.close < current.swing.price
-                     }
-                 }
-             }
+            val breakDetected =
+                when (structuralDirection) {
 
-         if (breakIndex >= 0) {
+                    StructureDirection.BULLISH ->
+                        candle.close < protected.swing.price
 
-             val breakCandle = candles[breakIndex]
+                    StructureDirection.BEARISH ->
+                        candle.close > protected.swing.price
 
-             events += ChangeOfCharacter(
-                 brokenPoint = current.swing,
-                 eventTime = breakCandle.closeTime,
-                 confirmationTime = breakCandle.closeTime,
-                 previousDirection = previousDirection,
-                 newDirection = currentDirection,
-                 breakPrice = breakCandle.close
-             )
-         }
-     }
+                    else ->
+                        false
+                }
 
-     if (currentDirection != StructureDirection.UNKNOWN) {
-         previousDirection = currentDirection
-     }
- }
+            if (!breakDetected) {
+                continue
+            }
 
- return events
-     .distinctBy {
-         Triple(
-             it.brokenPoint.time,
-             it.previousDirection,
-             it.newDirection
-         )
-     }
-     .sortedBy {
-         it.confirmationTime.instant
-     }
-  
-  }
-  
-  private fun classifySwings(
-  swings: List<SwingPoint>
-  ): List<StructurePoint> {
-  
-   val previousHighs = mutableListOf<SwingPoint>()
- val previousLows = mutableListOf<SwingPoint>()
+            val previousDirection = structuralDirection
 
- return swings.map { swing ->
+            val newDirection =
+                when (previousDirection) {
+                    StructureDirection.BULLISH ->
+                        StructureDirection.BEARISH
 
-     val classification =
-         when (swing.type) {
+                    StructureDirection.BEARISH ->
+                        StructureDirection.BULLISH
 
-             SwingPointType.HIGH -> {
+                    else ->
+                        StructureDirection.UNKNOWN
+                }
 
-                 val previous =
-                     previousHighs.lastOrNull()
+            if (newDirection == StructureDirection.UNKNOWN) {
+                continue
+            }
 
-                 previousHighs += swing
+            events += ChangeOfCharacter(
+                brokenPoint = protected.swing,
+                eventTime = candle.closeTime,
+                confirmationTime = candle.closeTime,
+                previousDirection = previousDirection,
+                newDirection = newDirection,
+                breakPrice = candle.close
+            )
 
-                 when {
-                     previous == null ->
-                         StructureClassification.UNCLASSIFIED
+            structuralDirection = newDirection
+            protectedPoint = null
+        }
 
-                     swing.price > previous.price ->
-                         StructureClassification.HIGHER_HIGH
+        return events
+            .distinctBy {
+                Triple(
+                    it.brokenPoint.time,
+                    it.previousDirection,
+                    it.newDirection
+                )
+            }
+            .sortedBy {
+                it.confirmationTime.instant
+            }
+    }
 
-                     swing.price < previous.price ->
-                         StructureClassification.LOWER_HIGH
+    private fun classifySwings(
+        swings: List<SwingPoint>
+    ): List<StructurePoint> {
 
-                     else ->
-                         StructureClassification.UNCLASSIFIED
-                 }
-             }
+        val previousHighs = mutableListOf<SwingPoint>()
+        val previousLows = mutableListOf<SwingPoint>()
 
-             SwingPointType.LOW -> {
+        return swings.map { swing ->
 
-                 val previous =
-                     previousLows.lastOrNull()
+            val classification =
+                when (swing.type) {
 
-                 previousLows += swing
+                    SwingPointType.HIGH -> {
 
-                 when {
-                     previous == null ->
-                         StructureClassification.UNCLASSIFIED
+                        val previous =
+                            previousHighs.lastOrNull()
 
-                     swing.price > previous.price ->
-                         StructureClassification.HIGHER_LOW
+                        previousHighs += swing
 
-                     swing.price < previous.price ->
-                         StructureClassification.LOWER_LOW
+                        when {
+                            previous == null ->
+                                StructureClassification.UNCLASSIFIED
 
-                     else ->
-                         StructureClassification.UNCLASSIFIED
-                 }
-             }
-         }
+                            swing.price > previous.price ->
+                                StructureClassification.HIGHER_HIGH
 
-     StructurePoint(
-         swing = swing,
-         classification = classification
-     )
- }
-  
-  }
-  
-  private fun directionAfterPoint(
-  points: List<StructurePoint>,
-  index: Int
-  ): StructureDirection {
-  
-   val recent =
-     points
-         .subList(0, index + 1)
-         .filter {
-             it.classification !=
-                 StructureClassification.UNCLASSIFIED
-         }
-         .takeLast(4)
+                            swing.price < previous.price ->
+                                StructureClassification.LOWER_HIGH
 
- if (recent.isEmpty()) {
-     return StructureDirection.UNKNOWN
- }
+                            else ->
+                                StructureClassification.UNCLASSIFIED
+                        }
+                    }
 
- val bullish =
-     recent.count {
-         it.classification ==
-             StructureClassification.HIGHER_HIGH ||
-             it.classification ==
-             StructureClassification.HIGHER_LOW
-     }
+                    SwingPointType.LOW -> {
 
- val bearish =
-     recent.count {
-         it.classification ==
-             StructureClassification.LOWER_HIGH ||
-             it.classification ==
-             StructureClassification.LOWER_LOW
-     }
+                        val previous =
+                            previousLows.lastOrNull()
 
- return when {
-     bullish >= 2 && bullish > bearish ->
-         StructureDirection.BULLISH
+                        previousLows += swing
 
-     bearish >= 2 && bearish > bullish ->
-         StructureDirection.BEARISH
+                        when {
+                            previous == null ->
+                                StructureClassification.UNCLASSIFIED
 
-     bullish > 0 && bearish > 0 ->
-         StructureDirection.TRANSITION
+                            swing.price > previous.price ->
+                                StructureClassification.HIGHER_LOW
 
-     else ->
-         StructureDirection.UNKNOWN
- }
-  
-  }
-  }
+                            swing.price < previous.price ->
+                                StructureClassification.LOWER_LOW
+
+                            else ->
+                                StructureClassification.UNCLASSIFIED
+                        }
+                    }
+                }
+
+            StructurePoint(
+                swing = swing,
+                classification = classification
+            )
+        }
+    }
+
+    private fun determineDirectionAtPoint(
+        points: List<StructurePoint>,
+        index: Int
+    ): StructureDirection {
+
+        val recent =
+            points
+                .subList(0, index + 1)
+                .filter {
+                    it.classification !=
+                        StructureClassification.UNCLASSIFIED
+                }
+                .takeLast(4)
+
+        if (recent.isEmpty()) {
+            return StructureDirection.UNKNOWN
+        }
+
+        val bullish =
+            recent.count {
+                it.classification ==
+                    StructureClassification.HIGHER_HIGH ||
+                    it.classification ==
+                    StructureClassification.HIGHER_LOW
+            }
+
+        val bearish =
+            recent.count {
+                it.classification ==
+                    StructureClassification.LOWER_HIGH ||
+                    it.classification ==
+                    StructureClassification.LOWER_LOW
+            }
+
+        return when {
+            bullish >= 2 && bullish > bearish ->
+                StructureDirection.BULLISH
+
+            bearish >= 2 && bearish > bullish ->
+                StructureDirection.BEARISH
+
+            bullish > 0 && bearish > 0 ->
+                StructureDirection.TRANSITION
+
+            else ->
+                StructureDirection.UNKNOWN
+        }
+    }
+}
