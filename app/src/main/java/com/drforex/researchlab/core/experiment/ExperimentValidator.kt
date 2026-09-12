@@ -1,5 +1,6 @@
 package com.drforex.researchlab.core.experiment
 
+import com.drforex.researchlab.core.research.ResearchDefinitionValidation
 import com.drforex.researchlab.core.research.ResearchHypothesis
 import com.drforex.researchlab.core.research.ResearchQuestion
 import com.drforex.researchlab.core.research.ResearchQuestionEngine
@@ -64,7 +65,7 @@ class ExperimentValidator(
 
         if (
             researchDefinitionValidation is
-            ResearchQuestionEngine.ResearchDefinitionValidation.Invalid
+            ResearchDefinitionValidation.Invalid
         ) {
             errors += researchDefinitionValidation.errors
         }
