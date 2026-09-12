@@ -1,339 +1,209 @@
 Dr. Forex — Quantitative Trading Research Laboratory
 
-«Dr. Forex is not a live trading bot.
+Dr. Forex is an Android-based quantitative trading research laboratory designed to investigate financial markets scientifically.
 
-Dr. Forex is an Android-based quantitative trading research laboratory designed to investigate financial markets scientifically, discover potentially repeatable relationships, develop and evaluate trading strategies, generate evidence-based forecasts, and progressively determine whether research findings remain valid under changing market conditions.
+It is not a live trading bot.
 
-The system is built around a simple principle:
+The purpose of Dr. Forex is to collect and validate market data, measure market behaviour and relationships, formulate hypotheses, design and run experiments, develop and evaluate trading strategies, generate evidence-based forecasts, test robustness, study changing market conditions, and progressively determine which findings deserve further investigation.
 
-Evidence must come before belief, and validation must come before trading authority.»
+The guiding principle is:
 
----
-
-1. Overview
-
-Financial markets contain enormous amounts of information, but the existence of patterns in historical data does not automatically mean that those patterns represent a genuine or exploitable advantage.
-
-A pattern can appear profitable because of:
-
-- Randomness
-- Data leakage
-- Look-ahead bias
-- Overfitting
-- Selection bias
-- Unrealistic execution assumptions
-- Incomplete data
-- Changing market regimes
-- Excessive parameter optimization
-- Transaction costs
-- Slippage
-- Liquidity limitations
-- Or a relationship that simply does not persist
-
-Dr. Forex is designed to investigate these problems rather than ignore them.
-
-The laboratory therefore does not begin with the assumption:
-
-«"Find a strategy that makes money."»
-
-It begins with the more fundamental question:
-
-«"Can we identify relationships in market data that remain sufficiently consistent, measurable, explainable, and robust to justify further investigation?"»
-
-Only after sufficient evidence has been established should a research finding be transformed into a strategy candidate.
+«Evidence must come before belief, and validation must come before trading authority.»
 
 ---
 
-2. Core Objective
+1. Scientific Philosophy
 
-The primary objective of Dr. Forex is to build a progressively more capable research system for understanding and testing the behaviour of financial markets.
+Dr. Forex is built around several core scientific principles.
 
-The system should be able to:
+1.1 Zero Look-Ahead Bias
 
-1. Collect and validate market data.
-2. Represent market conditions accurately.
-3. Measure quantitative characteristics of markets.
-4. Identify relationships and recurring patterns.
-5. Formulate testable hypotheses.
-6. Design controlled experiments.
-7. Backtest proposed ideas realistically.
-8. Attempt to disprove promising findings.
-9. Test robustness and generalization.
-10. Generate and evaluate probabilistic forecasts.
-11. Develop explicit strategies from sufficiently supported research.
-12. Test strategies under unseen and current-market conditions.
-13. Learn from both successful and unsuccessful experiments.
-14. Detect when previous findings or strategies begin to degrade.
-15. Continuously update its understanding of the market.
-16. Eventually support controlled real-world execution only when sufficient evidence and explicit authorization exist.
+No information that would not have been available at the time of a historical decision may be used to make that decision.
 
-The long-term goal is not simply to produce trading signals.
+Historical research must respect chronological information availability.
 
-The goal is to build a research system capable of progressively improving the quality of its own questions, experiments, forecasts, strategies, and conclusions.
+Future prices, future indicators, future events, future labels, or information derived from future observations must not leak into earlier decisions.
 
 ---
 
-3. Scientific Philosophy
+1.2 Realistic Market Friction
 
-The scientific philosophy is the foundation of Dr. Forex.
+Research must account for the costs and limitations of actual markets wherever applicable.
 
-Trading ideas are treated as hypotheses, not facts.
-
-A backtest is treated as evidence, not proof.
-
-A profitable historical result is treated as something that requires further investigation, not as confirmation that a strategy will continue to work.
-
-The laboratory must constantly ask:
-
-«"What evidence would convince us that this idea is wrong?"»
-
-This is as important as asking what evidence supports it.
-
----
-
-3.1 Zero Look-Ahead Bias
-
-All calculations, features, signals, forecasts, and decisions must use only information that would genuinely have been available at the relevant point in time.
-
-Future information must never leak into historical decisions.
-
-This includes:
-
-- Future candles
-- Future indicator values
-- Future market classifications
-- Future dataset information
-- Future labels
-- Future economic information
-- Future revisions of information that was not available at the time
-- Any other information that would not have been known during the original decision point
-
-A system that uses future information can produce impressive results while having no real predictive value.
-
-Therefore:
-
-«Historical availability matters as much as historical existence.»
-
----
-
-3.2 Realistic Market Friction
-
-A strategy that appears profitable before realistic trading costs may become unprofitable after those costs are included.
-
-Research should therefore account for relevant factors such as:
+This may include:
 
 - Spread
 - Slippage
+- Commission
 - Swap or financing costs
-- Commission where applicable
-- Execution timing
-- Position sizing
 - Liquidity
-- Market-session conditions
-- Other material execution limitations
+- Execution limitations
+- Trading-session restrictions
+- Position-size limitations
+- Broker or account constraints
 
-The objective is not to create the most attractive backtest.
-
-The objective is to create a simulation that is sufficiently realistic to make the resulting evidence useful.
-
----
-
-3.3 Overfitting Rejection
-
-A strategy can be made to look extremely successful by repeatedly adjusting it to historical data.
-
-That does not necessarily mean the strategy discovered a genuine relationship.
-
-Dr. Forex must therefore actively investigate overfitting through techniques such as:
-
-- Parameter sensitivity analysis
-- Parameter stability testing
-- Out-of-sample testing
-- Walk-forward testing
-- Monte Carlo analysis
-- Randomization
-- Stress testing
-- Regime analysis
-- Alternative dataset testing
-- Other appropriate robustness methods
-
-The system should prefer a slightly weaker but stable relationship over an extremely optimized and fragile historical result.
+A strategy should not appear successful simply because unrealistic market conditions were assumed.
 
 ---
 
-3.4 Reproducible Experimentation
+1.3 Overfitting Rejection
 
-Research should not depend on memory.
+A strategy that performs exceptionally well on historical data may simply be fitting historical noise.
 
-Every meaningful experiment should preserve enough information to reproduce and understand the result.
+Dr. Forex must therefore investigate:
 
-Where applicable, an experiment should record:
+- Parameter sensitivity
+- Feature sensitivity
+- Strategy complexity
+- Data-snooping
+- Multiple-testing effects
+- Regime dependence
+- Out-of-sample performance
+- Walk-forward performance
+- Stress-test behaviour
+- Forward/demo behaviour
 
-- Research question
-- Hypothesis
-- Dataset
-- Dataset identity or fingerprint
-- Instruments
+The objective is not to find the most impressive historical curve.
+
+The objective is to determine whether the underlying finding remains credible outside the conditions that produced it.
+
+---
+
+1.4 Reproducible Experimentation
+
+Research must be reproducible.
+
+An experiment should record the conditions under which it was performed, including where applicable:
+
+- Dataset and version
+- Instrument
+- Date range
 - Timeframes
 - Features
+- Strategy/model version
 - Parameters
-- Methodology
+- Initial capital
+- Risk configuration
+- Market-cost assumptions
 - Execution assumptions
-- Costs
-- Model version
-- Reasoning version
+- Hypothesis
+- Validation methodology
 - Results
-- Validation results
-- Contradictory evidence
-- Conclusion
-- Limitations
-- Follow-up questions
 
-Experiments should have persistent identities, for example:
-
-EXP-0001
-EXP-0002
-EXP-0003
-...
-
-A research result should remain understandable even years after it was produced.
+The same research configuration should be capable of reproducing the same research process and result.
 
 ---
 
-3.5 Evidence Before Belief
+1.5 Reproducibility Does Not Mean Repetition
 
-Dr. Forex should preserve both supporting and contradictory evidence.
+Dr. Forex should not simply memorize previous conclusions and repeat them.
 
-A finding should not become accepted merely because the system repeatedly encounters information that agrees with it.
+A reproducible methodology should be maintained while conclusions remain responsive to new evidence.
 
-The laboratory should actively search for:
-
-- Contradictory observations
-- Failed replications
-- Alternative explanations
-- Different market regimes
-- Different instruments
-- Different time periods
-- Different parameter ranges
-- Different execution assumptions
-
-Negative results are valuable.
-
-A failed experiment can prevent the system from wasting future research effort on an unsupported idea.
+If new information materially changes the evidence, the reasoning and forecast should be allowed to change.
 
 ---
 
-3.6 Reproducibility Does Not Mean Repetition
+1.6 Evidence Before Belief
 
-A forecasting or reasoning system should not simply memorize previous answers.
+An observation is not automatically a fact.
 
-If the same methodology is applied to the same information under the same conditions, it should produce reproducible reasoning.
+A correlation is not automatically causation.
 
-However, if new evidence becomes available, the conclusion should be allowed to change.
+A successful backtest is not automatically a robust strategy.
 
-Therefore:
+A forecast is not certainty.
 
-«The system should reproduce its methodology, not blindly reproduce its answer.»
+Dr. Forex should distinguish between:
+
+- Observation
+- Association
+- Correlation
+- Historical pattern
+- Hypothesis
+- Experimental result
+- Robust evidence
+- Forecast
+- Research finding
+- Strategy candidate
+- Validated conclusion
 
 ---
 
-3.7 Research and Execution Must Remain Separate
+1.7 Research and Execution Must Remain Separate
 
-Finding a potentially useful relationship does not automatically create a trading strategy.
+Research success must never automatically grant permission to trade real money.
 
 A successful backtest does not automatically authorize live trading.
 
-A successful demo experiment does not automatically authorize real-money execution.
+A strong forecast does not automatically become a trade.
 
-The progression should remain:
+A successful demo experiment does not automatically authorize real-account execution.
 
-RESEARCH
-    ↓
-HYPOTHESIS
-    ↓
-EXPERIMENT
-    ↓
-VALIDATION
-    ↓
-STRATEGY CANDIDATE
-    ↓
-FORWARD EXPERIMENT
-    ↓
-CONTROLLED LIVE OBSERVATION
-    ↓
-USER AUTHORIZATION
-    ↓
-REAL-MONEY EXECUTION
-
-Each stage requires its own evidence.
+Real-money execution must remain a separate capability requiring appropriate validation, safeguards and explicit user authorization.
 
 ---
 
-3.8 Continuous Re-evaluation
+1.8 Continuous Re-evaluation
 
-Markets evolve.
+Financial markets evolve.
 
-Relationships that existed previously may weaken, disappear, or become conditional.
+A strategy that worked previously may degrade.
 
-A strategy that once worked may eventually stop working.
+A relationship that appeared stable may disappear.
 
-A forecast model that was well calibrated may become poorly calibrated.
+A forecasting model may become poorly calibrated.
 
-Therefore, Dr. Forex must not treat previously discovered knowledge as permanently true.
+A feature that was once useful may lose predictive value.
 
-Knowledge must remain open to:
+Dr. Forex must therefore continuously compare new evidence against previous findings and identify:
 
 - Confirmation
-- Refinement
-- Qualification
-- Degradation
 - Contradiction
-- Rejection
-- Revalidation
+- Degradation
+- Regime change
+- Invalidated assumptions
+- New research opportunities
 
 ---
 
-4. The Research Cycle
+2. Core Research Cycle
 
-The core research process can be represented as:
+The fundamental research process is:
 
 MARKET DATA
-      ↓
+    ↓
 VALIDATE & CLEAN
-      ↓
+    ↓
 UNDERSTAND MARKET CONDITIONS
-      ↓
+    ↓
 MEASURE FEATURES & RELATIONSHIPS
-      ↓
+    ↓
 FORMULATE HYPOTHESIS
-      ↓
+    ↓
 DESIGN EXPERIMENT
-      ↓
+    ↓
 BACKTEST / SIMULATE
-      ↓
-TEST ROBUSTNESS
-      ↓
+    ↓
+ROBUSTNESS TESTING
+    ↓
 OUT-OF-SAMPLE VALIDATION
-      ↓
+    ↓
 FORECAST / STRATEGY EVALUATION
-      ↓
-FORWARD EXPERIMENT
-      ↓
+    ↓
+FORWARD / DEMO EXPERIMENT
+    ↓
 NEW EVIDENCE
-      ↓
+    ↓
 RESEARCH AGAIN
 
-This is intentionally a loop.
-
-The objective is not to finish research once and then permanently deploy a strategy.
-
-The objective is to continuously generate and evaluate evidence.
+This is a continuous loop rather than a one-time process.
 
 ---
 
-5. Research Lifecycle
+3. Research Lifecycle
 
-The fundamental research lifecycle is:
+Individual research questions should follow a lifecycle such as:
 
 OBSERVATION
     ↓
@@ -351,150 +221,118 @@ RESEARCH FINDING
     ↓
 FOLLOW-UP QUESTION
 
-An observation is not a strategy.
-
-A hypothesis is not a fact.
-
-A backtest is not proof.
-
-A research finding is not automatically a trading instruction.
-
-Each stage should preserve its relationship with the stages before and after it.
+A finding may generate another question rather than becoming a permanent conclusion.
 
 ---
 
-6. Market Data Foundation
+4. Market Data Foundation
 
-Everything above the data layer depends on the quality of the underlying information.
+Reliable research begins with reliable data.
 
-The market-data foundation is responsible for establishing trustworthy research inputs.
+The data foundation should progressively support:
 
-Areas include:
-
-- Historical market-data ingestion
-- OHLC data
+- Historical market data
+- Point-in-time data
 - Chronological integrity
-- Duplicate detection
+- Multi-timeframe alignment
 - Missing-data detection
-- Gap analysis
-- Invalid-price detection
-- Timeframe alignment
-- Point-in-time availability
-- Dataset identity
-- Dataset fingerprinting
-- Data-quality diagnostics
-- Reproducible dataset definitions
+- Duplicate detection
+- Timestamp validation
+- Market-session awareness
+- Data-quality measurement
+- Instrument metadata
+- Volume-derived measurements where available
+- Relevant economic/event information
+- Data-source provenance
 
-The system must distinguish between:
-
-INFORMATION THAT EXISTS TODAY
-
-and:
-
-INFORMATION THAT WOULD HAVE BEEN AVAILABLE AT THE HISTORICAL DECISION TIME
-
-This distinction is fundamental to preventing look-ahead bias.
+Research results should remain traceable to the data from which they were produced.
 
 ---
 
-7. Quantitative Measurement Layer
+5. Quantitative Measurement Layer
 
-Raw market data is not enough.
+Raw market data must be transformed into measurable research inputs.
 
-Dr. Forex requires a measurement layer capable of converting market observations into quantitative representations that can be researched.
-
-Depending on the research question, this may include:
+The measurement layer may include:
 
 - Returns
-- Price behaviour
 - Volatility
-- Range characteristics
-- Price-location measurements
+- Range
+- Trend measurements
+- Momentum
+- Price location
 - Statistical measurements
-- Volume-derived measurements
-- Technical indicators
+- Rolling relationships
+- Correlations
+- Regime measurements
+- Volume-derived metrics
+- Cross-asset relationships
 - Market-structure measurements
-- Multi-timeframe relationships
-- Cross-instrument relationships
-- Regime characteristics
-- Event-related measurements
-- Feature snapshots
+- Quantitative feature snapshots
+- Point-in-time feature calculations
 
-These measurements are inputs to research, not conclusions.
-
-For example:
-
-«Correlation does not automatically imply causation.»
-
-Likewise:
-
-«A statistically significant relationship does not automatically imply that the relationship is tradable.»
+Measurements must respect chronological information availability.
 
 ---
 
-8. Research & Experimentation Engine
+6. Research & Experimentation Engine
 
-The research engine is the scientific core of Dr. Forex.
+The research engine should allow Dr. Forex to investigate questions systematically.
 
-It should allow the laboratory to answer:
-
-«What exactly did we investigate, why did we investigate it, what information did we use, what assumptions did we make, what happened, and how strong is the evidence?»
-
-A meaningful experiment should be capable of preserving:
+An experiment may define:
 
 - Research question
 - Hypothesis
+- Competing hypotheses
 - Dataset
-- Dataset fingerprint
 - Instrument
-- Timeframe
+- Date range
+- Timeframes
 - Features
+- Strategy/model
 - Parameters
-- Experimental methodology
+- Initial capital
+- Risk configuration
+- Market assumptions
 - Execution assumptions
-- Costs
-- Results
-- Validation
-- Contradictory evidence
-- Model/version
-- Reasoning/version
+- Evaluation metrics
+- Validation methodology
+- Expected result
+- Actual result
 - Conclusion
-- Limitations
 - Follow-up research
+
+Experiments should remain individually reproducible even when their configurations differ.
 
 ---
 
-9. Research Findings
+7. Competing Hypotheses
 
-A useful research result should produce more than a performance number.
+Dr. Forex should not simply search for evidence supporting the first explanation that appears plausible.
 
-A research finding should ideally answer:
+Where multiple explanations are possible, they should be represented as competing hypotheses.
 
-What were we investigating?
+For example:
 
-Why was the question important?
+Observation:
+A currency pair behaves differently during high-volatility periods.
 
-What data was used?
+Possible hypotheses:
 
-What methodology was used?
+H1 — Volatility changes trend persistence.
+H2 — Liquidity conditions change execution behaviour.
+H3 — Economic events alter market structure.
+H4 — The apparent relationship is statistical noise.
 
-What did we observe?
+Research should attempt to distinguish between competing explanations.
 
-Was the observation statistically meaningful?
+---
 
-Did it survive reasonable variations?
+8. Research Findings
 
-Did it survive out-of-sample testing?
+Research findings should have explicit status.
 
-What contradictory evidence exists?
-
-What assumptions limit the conclusion?
-
-What can reasonably be generalized?
-
-What should we investigate next?
-
-A finding might eventually be classified as:
+Possible classifications include:
 
 UNSUPPORTED
 INCONCLUSIVE
@@ -507,326 +345,358 @@ REQUIRES FURTHER VALIDATION
 DEGRADED
 INVALIDATED
 
-These classifications should represent evidence quality, not optimism.
+A finding should retain the evidence and conditions supporting its classification.
 
 ---
 
-10. Strategy Development
+9. Strategy Development
 
-Strategies are downstream products of research.
+Strategies are research objects.
 
-A strategy should be based on explicit rules that can be tested.
+A strategy should be capable of being:
 
-The strategy layer should support:
+- Formulated
+- Tested
+- Compared
+- Modified
+- Combined
+- Rejected
+- Re-tested
+- Forward-tested
+- Monitored
+- Suspended
+- Returned to research
 
-- Explicit strategy definitions
-- Rule evaluation
-- Parameter management
-- Strategy versioning
-- Research-to-strategy traceability
+A strategy should never be considered valid solely because it produced a profitable historical backtest.
+
+---
+
+10. Strategy Composition & Feature Borrowing
+
+Dr. Forex should be capable of investigating whether useful features from different strategies can be combined to formulate stronger strategies.
+
+For example:
+
+Strategy A
+├── Strong trend detection
+└── Weak in ranging markets
+
+Strategy B
+├── Strong range detection
+└── Weak in strong trends
+
+Strategy C
+└── Strong volatility filtering
+
+          ↓
+
+COMBINATION HYPOTHESIS
+
+Trend feature from A
++
+Range behaviour from B
++
+Volatility filter from C
+
+          ↓
+
+NEW STRATEGY CANDIDATE
+
+The purpose is not to assume that combining successful strategies automatically produces a better strategy.
+
+The combination itself becomes a new research hypothesis.
+
+It must undergo independent:
+
 - Backtesting
-- Strategy comparison
 - Robustness testing
-- Out-of-sample testing
-- Forward experimentation
+- Out-of-sample validation
+- Stress testing
+- Forward/demo experimentation
 
-The relationship should remain traceable:
+Feature borrowing also introduces additional overfitting risk.
 
-STRATEGY
-   ↓
-VALIDATION
-   ↓
-EXPERIMENTS
-   ↓
-HYPOTHESIS
-   ↓
-OBSERVATION
-   ↓
-MEASUREMENTS
-   ↓
-MARKET DATA
-
-This allows the system to investigate not only whether a strategy worked, but why it was created and what evidence justified it.
+Dr. Forex must therefore investigate whether the combined features provide genuine incremental value rather than merely producing a better historical fit.
 
 ---
 
 11. Forecasting
 
-Forecasting is an important capability of Dr. Forex, but it remains part of the research process rather than replacing it.
+Forecasting is a first-class research capability.
 
-The goal is not to create a system that repeatedly says:
+Dr. Forex should eventually be capable of generating coherent, evidence-based and repeatable forecasts.
 
-BUY
-SELL
-BUY
-SELL
-
-The goal is to generate coherent, probabilistic, evidence-based forecasts that can later be evaluated against reality.
-
-A forecast should be a testable prediction.
-
----
-
-11.1 Probabilistic Forecasting
+Forecasts should preferably be probabilistic or scenario-based rather than simplistic unconditional BUY/SELL outputs.
 
 A forecast may contain:
 
-Instrument
-Forecast timestamp
-Forecast horizon
-Market regime
-Primary scenario
-Primary probability
-Alternative scenarios
-Alternative probabilities
-Supporting evidence
-Contradictory evidence
-Invalidation conditions
-Model version
-Reasoning version
+- Instrument
+- Forecast timestamp
+- Forecast horizon
+- Current market conditions
+- Market regime
+- Primary scenario
+- Probability/confidence
+- Alternative scenarios
+- Supporting evidence
+- Contradictory evidence
+- Important assumptions
+- Invalidation conditions
+- Model/reasoning version
 
-For example:
-
-Instrument: EUR/USD
-
-Horizon: 24 hours
-
-Primary scenario:
-Continuation
-
-Probability:
-58%
-
-Alternative:
-Range / reversal
-
-Probability:
-42%
-
-Supporting evidence:
-Current structure
-Volatility regime
-Cross-market relationships
-Relevant economic conditions
-
-Invalidation:
-Defined conditions that materially contradict
-the forecast
-
-The numbers above are illustrative only.
+A forecast should explain the reasoning and evidence behind its conclusion.
 
 ---
 
 12. Forecast Evaluation
 
-A forecast is not valuable merely because it sounds convincing.
+A forecast is itself a research object.
 
-It must eventually be compared with what actually happened.
-
-Dr. Forex should therefore investigate:
+After its forecast horizon has elapsed, Dr. Forex should evaluate:
 
 - Directional accuracy
-- Forecast error
+- Magnitude error
+- Scenario accuracy
 - Probability calibration
-- Performance by horizon
+- Confidence calibration
 - Performance by instrument
+- Performance by horizon
 - Performance by market regime
-- Performance by confidence level
 - Performance under different information conditions
 
-A useful calibration question is:
-
-«If the system repeatedly assigns an event a probability of 60%, does that event actually occur approximately 60% of the time over a sufficiently large and appropriate sample?»
-
-Forecasting therefore becomes another research subject.
-
-The system should not only make forecasts.
-
-It should research whether its forecasting process is actually useful.
+Forecast performance should feed back into the research process.
 
 ---
 
 13. Forecasts Do Not Automatically Become Trades
 
-This boundary is fundamental.
+A forecast is not automatically a trading instruction.
 
-A forecast saying:
+Even a highly confident forecast may result in:
 
-EUR/USD
-60% probability of scenario A
+NO TRADE
 
-does not mean:
+when:
 
-BUY EUR/USD
+- Evidence is insufficient
+- Contradictory evidence is strong
+- Expected edge is too small
+- Risk is excessive
+- Execution conditions are poor
+- Account constraints are violated
+- Strategy requirements are not satisfied
 
-A forecast may be correct but still produce an unsuitable trading opportunity.
-
-Likewise, a strategy may use a forecast as one input without treating the forecast as a standalone trading signal.
-
-Therefore:
-
-FORECAST
-    ≠
-AUTOMATIC TRADE
-
-Trading authority must come from a separately validated strategy and risk framework.
+The ability to say NO TRADE is part of responsible research intelligence.
 
 ---
 
-14. Adaptive Research Intelligence
+14. Laboratory Configuration
 
-As Dr. Forex develops, it should become capable of maintaining an increasingly current understanding of the Forex environment.
+Dr. Forex should provide sensible default laboratory parameters.
 
-The objective is not simply to build a model that predicts prices.
+However:
 
-The objective is to develop an intelligence layer that can continuously investigate:
+«A default is a starting assumption, not a fixed truth.»
 
-«How is the market changing, what assumptions are becoming weaker or stronger, and what new evidence should change our research priorities?»
+Laboratory configuration must be customizable.
 
-Relevant areas may include:
+Example starting values:
 
-- Monetary policy
-- Interest rates
-- Inflation
-- Employment
-- Central-bank behaviour
-- Economic releases
-- Volatility
-- Liquidity
-- Currency relationships
-- Cross-asset relationships
-- Market microstructure
-- Geopolitical developments
-- Academic research
-- Quantitative research
-- New modelling approaches
-- Changes in market behaviour
-- Strategy performance
-- Forecast performance
+Parameter| Example Default| Status
+Base currency| KSh| Customizable
+Initial research capital| KSh 20,000| Fully customizable
+Risk per trade| 1%| Customizable
+Execution timeframe| M15| Customizable
+Context timeframes| H1 / H4| Customizable
+Spread| 1.5 pips| Configurable / instrument-dependent
+Slippage| 0.5 pips| Configurable / environment-dependent
 
-The system should not attempt to collect everything.
+These values are provided as sensible starting points for research.
 
-It should prioritize information that could materially affect:
+They are not universal assumptions.
 
-- A research hypothesis
-- A market relationship
-- A forecast
-- A strategy
-- A risk assumption
-- A market-regime classification
-- A previous research conclusion
+In particular, initial research capital must never be hard-coded to KSh 20,000.
 
 ---
 
-15. Adaptive Reasoning
+15. Laboratory Parameters as Research Variables
 
-The long-term reasoning process should resemble:
-
-CURRENT KNOWLEDGE
-       ↓
-NEW EVIDENCE
-       ↓
-ASSESS RELEVANCE
-       ↓
-COMPARE WITH EXISTING BELIEFS
-       ↓
-SUPPORT / CONTRADICT / QUALIFY
-       ↓
-FORM NEW QUESTIONS
-       ↓
-DESIGN EXPERIMENTS
-       ↓
-NEW RESULTS
-       ↓
-UPDATE UNDERSTANDING
-
-The system should not silently rewrite its understanding.
-
-When its reasoning changes, the reason for the change should remain traceable.
-
----
-
-16. Knowledge & Reasoning Registry
-
-Long-term learning requires more than storing model weights or previous answers.
-
-Dr. Forex should progressively develop a structured knowledge and reasoning registry.
-
-A knowledge record may contain:
-
-- Knowledge statement
-- Supporting evidence
-- Contradictory evidence
-- Applicable conditions
-- Relevant time period
-- Confidence
-- Last review
-- Knowledge version
-- Reasoning version
-- Related experiments
-- Related forecasts
-- Related strategies
-- Current status
+Some laboratory parameters should themselves be available for experimentation.
 
 For example:
 
-KNOWLEDGE-0042
+- Timeframe
+- Risk per trade
+- Entry threshold
+- Exit threshold
+- Holding period
+- Position-sizing method
+- Strategy features
+- Strategy combinations
+- Forecast horizon
+- Execution assumptions where scientifically appropriate
 
-Statement:
-Relationship X appears stronger during regime Y.
+The system should distinguish between three types of configuration.
 
-Supporting evidence:
-Experiments A, B, C
+Research Variables
 
-Contradictory evidence:
-Experiment D
+Variables that can legitimately be changed to answer a research question.
 
-Applicable conditions:
-...
+Environmental Parameters
 
-Confidence:
-...
+Conditions that should be measured or realistically modelled.
 
-Last reviewed:
-...
+Examples:
 
-Status:
-Conditionally supported
+- Spread
+- Slippage
+- Commission
+- Liquidity
+- Execution latency
 
-The system should preserve how knowledge evolved rather than simply replacing old conclusions.
+These should not be manipulated merely to produce better historical results.
+
+Hard Constraints
+
+Conditions imposed by the account, broker, instrument or safety system.
+
+These should be respected rather than optimized away.
 
 ---
 
-17. Competing Hypotheses
+16. Capital as a Research Variable
 
-The laboratory should not only ask:
+Initial capital must be fully customizable.
 
-«"How can we prove this idea?"»
+One of the eventual practical questions Dr. Forex should answer is:
 
-It should also ask:
+«If I had capital X, how much would it have grown or depreciated over timeframe W using strategy T?»
 
-«"What alternative explanation could produce the same observation?"»
+The research configuration should therefore be able to specify:
 
-For example, if a relationship appears between two market variables, possible explanations may include:
+Initial Capital
+Instrument
+Strategy
+Research Period
+Execution Timeframe
+Context Timeframes
+Risk Model
+Market Costs
+Execution Assumptions
 
-- Genuine economic relationship
-- Common response to another variable
-- Market-regime effect
-- Time-period artifact
-- Selection bias
-- Random coincidence
-- Data problem
-- Execution effect
+The resulting research output should be able to show:
 
-The system should be able to recommend experiments capable of distinguishing competing explanations.
+Initial Capital
+Final Capital
+Net Profit / Loss
+Percentage Return
+Maximum Drawdown
+Equity Curve
+Risk Metrics
+Trade Statistics
+Winning / Losing Periods
 
-This helps prevent the laboratory from confusing an observed relationship with an assumed explanation.
+The same strategy should be testable with different starting capital.
+
+For example:
+
+KSh 10,000
+KSh 20,000
+KSh 50,000
+KSh 100,000
+
+This allows Dr. Forex to investigate how capital size and risk interact with strategy performance.
+
+The purpose is not merely to calculate profit.
+
+It is to understand the relationship between:
+
+CAPITAL
++
+RISK
++
+STRATEGY
++
+MARKET CONDITIONS
++
+TIME
+
+---
+
+17. Demo / Forward Experimentation
+
+Demo experimentation should not merely be a final demonstration that a backtest worked.
+
+It should be a controlled forward research stage.
+
+The progression is:
+
+HISTORICAL RESEARCH
+        ↓
+BACKTEST
+        ↓
+ROBUSTNESS TESTING
+        ↓
+OUT-OF-SAMPLE
+        ↓
+DEMO / PAPER EXPERIMENT
+        ↓
+FORWARD EVIDENCE
+        ↓
+RESEARCH UPDATE
+        ↓
+RETEST
+
+Demo experimentation can investigate legitimate research variables such as:
+
+- Risk configuration
+- Timeframe
+- Entry/exit behaviour
+- Strategy combinations
+- Execution behaviour
+- Signal frequency
+- Forecast horizon
+- Position sizing
+
+However, variables should normally be changed through controlled experiments.
+
+For example:
+
+DEMO EXPERIMENT D-001
+Strategy T
+M15
+1% risk
+
+DEMO EXPERIMENT D-002
+Strategy T
+M15
+0.5% risk
+
+DEMO EXPERIMENT D-003
+Strategy T
+M15
+Alternative exit model
+
+This makes it possible to determine what actually caused a change in behaviour.
+
+Demo experimentation should also reveal issues that historical research cannot fully reproduce, such as:
+
+- Actual execution behaviour
+- Spread variation
+- Slippage
+- Latency
+- Signal frequency
+- Missed signals
+- Changing market regimes
+- Forecast calibration
+- Strategy degradation
+- Operational problems
 
 ---
 
 18. Strategy Lifecycle
 
-Strategies should progress through increasingly demanding levels of evidence.
+A strategy may progress through:
 
 DISCOVERED
     ↓
@@ -850,86 +720,175 @@ LIVE
     ↓
 MONITORED
 
-A strategy must also be able to move backwards.
-
-For example:
+A strategy may also regress:
 
 LIVE
-  ↓
+ ↓
 DEGRADING
-  ↓
+ ↓
 UNDER REVIEW
-  ↓
+ ↓
 SUSPENDED
-  ↓
+ ↓
 RESEARCH AGAIN
 
-This is important because historical validation does not guarantee permanent validity.
+Previous success does not guarantee continued validity.
 
 ---
 
-19. Live Experimentation
+19. Adaptive Research Intelligence
 
-Once a strategy has accumulated sufficient research evidence, Dr. Forex should progressively test it under current-market conditions.
+The machine-learning and reasoning layer should maintain an up-to-date understanding of the Forex research environment.
 
-The purpose of live experimentation is not to immediately make money.
+Its objective is not simply to memorize historical information.
 
-The purpose is to determine whether the behaviour observed in research continues under conditions that were not available during development.
+It should continuously investigate how the financial environment is evolving and whether those changes affect Dr. Forex's existing understanding.
 
-This progression may include:
+Potential areas include:
 
-HISTORICAL
-    ↓
-BACKTEST
-    ↓
-OUT-OF-SAMPLE
-    ↓
-PAPER / DEMO
-    ↓
-CURRENT-MARKET OBSERVATION
-    ↓
-CONTROLLED LIVE EXPERIMENT
+- Monetary policy
+- Interest rates
+- Inflation
+- Employment
+- Central-bank behaviour
+- Economic releases
+- Volatility
+- Liquidity
+- Currency relationships
+- Cross-asset relationships
+- Market microstructure
+- Geopolitical developments
+- Quantitative research
+- Academic research
+- New modelling approaches
+- Market-regime changes
+- Strategy performance
+- Forecast performance
 
-Different strategies should be evaluated against comparable conditions where appropriate.
+The system should prioritize information that could materially affect existing hypotheses, relationships, forecasts, strategies, risk assumptions or conclusions.
 
-The laboratory should preserve the evidence generated during forward experimentation and feed it back into research.
-
----
-
-20. Real-Account Execution
-
-Real-money execution is a separate and heavily controlled capability.
-
-A strategy must never receive real-money authority simply because:
-
-- A backtest performed well
-- A forecast was accurate
-- A demo account was profitable
-- An optimization produced attractive results
-
-Before real-money execution is considered, appropriate validation should include:
-
-- Research evidence
-- Out-of-sample performance
-- Robustness
-- Forward/demo behaviour
-- Strategy stability
-- Forecast quality where applicable
-- Risk validation
-- Operational validation
-- Broker/account authorization
-- Exposure limits
-- Emergency controls
-
-Most importantly:
-
-«The user retains explicit authority over real-money activation.»
+The goal is relevant continuous research, not indiscriminate information collection.
 
 ---
 
-21. Risk & Safety Controls
+20. Adaptive Reasoning
 
-The execution layer should support strict controls such as:
+Dr. Forex should maintain a distinction between:
+
+KNOWLEDGE
++
+EVIDENCE
++
+ASSUMPTIONS
++
+HYPOTHESES
++
+REASONING
++
+EXPERIMENTAL RESULTS
++
+CURRENT CONDITIONS
+
+The system should be able to determine:
+
+- What it previously believed
+- Why it believed it
+- What evidence supported that belief
+- What evidence contradicted it
+- Whether the conditions still apply
+- What has changed
+- Whether the conclusion should be retained
+- Whether it should be weakened
+- Whether it should be revised
+- Whether it should be rejected
+
+---
+
+21. Knowledge & Reasoning Registry
+
+Research knowledge should remain traceable.
+
+A knowledge record may contain:
+
+Knowledge Statement
+Supporting Evidence
+Contradictory Evidence
+Applicable Conditions
+Relevant Time Period
+Confidence
+Last Review
+Knowledge Version
+Reasoning Version
+Related Experiments
+Related Forecasts
+Related Strategies
+Current Status
+
+Knowledge should therefore have a lifecycle rather than being treated as permanently correct.
+
+---
+
+22. Machine Learning & Adaptive Intelligence
+
+Machine learning should be introduced as a research capability, not as a replacement for scientific validation.
+
+Potential applications include:
+
+- Pattern discovery
+- Market-regime classification
+- Forecasting
+- Feature discovery
+- Feature selection
+- Relationship discovery
+- Hypothesis generation
+- Strategy evaluation
+- Probability calibration
+- Anomaly detection
+- Strategy degradation detection
+- Research prioritization
+- Strategy-combination research
+
+ML systems must remain subject to:
+
+- Data separation
+- Leakage prevention
+- Out-of-sample testing
+- Robustness testing
+- Calibration
+- Reproducibility
+- Model/version tracking
+- Appropriate baselines
+
+A complex model that performs well historically is not automatically better than a simpler model.
+
+---
+
+23. Adaptive ML Objective
+
+The long-term ML layer should help Dr. Forex continuously improve its ability to reason about its primary objective:
+
+«Understand financial-market behaviour, discover useful evidence, formulate hypotheses, generate and evaluate forecasts, investigate strategies, and determine under what conditions those findings remain valid.»
+
+The ML layer should progressively be capable of:
+
+1. Learning from validated research data.
+2. Identifying potentially useful relationships.
+3. Generating hypotheses.
+4. Comparing competing explanations.
+5. Evaluating forecasts.
+6. Identifying market regimes.
+7. Detecting strategy degradation.
+8. Suggesting new experiments.
+9. Learning from failed experiments.
+10. Re-evaluating previous conclusions when new evidence appears.
+
+It must not simply memorize successful historical answers.
+
+---
+
+24. Risk & Safety Controls
+
+Before any real-money execution capability is considered, Dr. Forex should support appropriate controls such as:
 
 - Maximum risk per trade
 - Maximum daily loss
@@ -941,73 +900,42 @@ The execution layer should support strict controls such as:
 - Session restrictions
 - Emergency stop
 - Account-level kill switch
+- Explicit user authorization
 
-The system must be capable of deciding:
-
-«NO TRADE»
-
-This is an important capability.
-
-The correct response to insufficient evidence, conflicting signals, degraded strategy performance, abnormal market conditions, or breached risk limits may be to do nothing.
+The system must be capable of refusing to trade when evidence, safety or operating conditions are insufficient.
 
 ---
 
-22. Continuous Research Loop
+25. Real-Account Execution
 
-The mature system should operate as a closed loop:
+Real-account execution is separate from research.
 
-MARKET OBSERVATION
-        ↓
-DATA
-        ↓
-MEASUREMENT
-        ↓
-RESEARCH
-        ↓
-FORECASTING
-        ↓
-STRATEGY DEVELOPMENT
-        ↓
-BACKTESTING
-        ↓
-ROBUSTNESS
-        ↓
-OUT-OF-SAMPLE
-        ↓
-FORWARD EXPERIMENTATION
-        ↓
-CONTROLLED EXECUTION
-        ↓
-NEW EVIDENCE
-        ↓
-FORECAST / STRATEGY EVALUATION
-        ↓
-KNOWLEDGE UPDATE
-        ↓
-NEW RESEARCH QUESTIONS
-        ↺
+A successful backtest does not automatically authorize live trading.
 
-The system should learn from:
+A successful demo experiment does not automatically authorize live trading.
 
-- Successful experiments
-- Failed experiments
-- Incorrect forecasts
-- Poorly calibrated forecasts
-- Strategy degradation
-- Market-regime changes
-- Data-quality problems
-- Unexpected execution behaviour
-- Contradictory evidence
+A strong forecast does not automatically authorize live trading.
 
-Failure is therefore not wasted information.
+Potential prerequisites include:
+
+- Research evidence
+- Robustness evidence
+- Out-of-sample evidence
+- Forward/demo evidence
+- Stable strategy behaviour
+- Forecast evaluation
+- Risk validation
+- Operational validation
+- Broker/account validation
+- Exposure controls
+- Emergency controls
+- Explicit user authorization
 
 ---
 
-23. Evidence Hierarchy
+26. Evidence Hierarchy
 
-Different types of evidence answer different questions.
-
-A simplified hierarchy is:
+Evidence should generally become stronger as research progresses toward increasingly realistic conditions:
 
 OBSERVATION
     ↓
@@ -1025,573 +953,298 @@ FORWARD / DEMO EVIDENCE
     ↓
 CURRENT-MARKET EVIDENCE
 
-No single level proves permanent profitability.
-
-Historical evidence can demonstrate that a relationship existed.
-
-Robustness testing can determine whether it survives reasonable variations.
-
-Out-of-sample testing can investigate generalization.
-
-Forward experimentation can investigate whether it continues under unseen conditions.
-
-Current-market observation can investigate whether it remains relevant now.
+No individual layer constitutes absolute proof.
 
 ---
 
-24. Progressive Development Roadmap
+27. Continuous Research Loop
 
-The original 13-phase development roadmap remains the foundation of Dr. Forex.
-
-The newer forecasting, adaptive research, machine-learning, and controlled-experimentation capabilities are extensions of this roadmap rather than replacements for it.
-
----
-
-Phase 1 — Android Foundation & Data Ingestion
-
-Establish the core Android research environment and foundational infrastructure.
-
-Focus areas:
-
-- Android application foundation
-- Local research persistence
-- Core domain structure
-- Data ingestion
-- Basic data validation
-- Research data management
-- Experiment foundations
-- Reproducibility foundations
-
----
-
-Phase 2 — Point-in-Time Historical Data
-
-Build trustworthy historical market representation.
-
-Focus areas:
-
-- Historical datasets
-- Chronological integrity
-- Duplicate detection
-- Missing-data detection
-- Gap handling
-- Multi-timeframe alignment
-- Point-in-time availability
-- Dataset validation
-- Dataset reproducibility
-
----
-
-Phase 3 — Technical & Market Structure Engines
-
-Build the quantitative measurement layer.
-
-Focus areas:
-
-- Statistical measurements
-- Technical indicators
-- Volatility measurements
-- Range measurements
-- Price-location measurements
-- Volume-derived measurements
-- Market structure
-- Multi-timeframe relationships
-- Feature construction
-
----
-
-Phase 4 — Modular Strategy Framework
-
-Convert sufficiently supported research ideas into explicit strategy definitions.
-
-Focus areas:
-
-- Hypothesis representation
-- Strategy rules
-- Strategy parameters
-- Strategy versioning
-- Research-to-strategy traceability
-- Deterministic evaluation
-
----
-
-Phase 5 — Event-Driven Backtesting Simulator
-
-Create a realistic research simulation environment.
-
-Focus areas:
-
-- Event-driven execution
-- Entry and exit timing
-- Spread
-- Slippage
-- Swap/financing
-- Position lifecycle
-- Capital accounting
-- Realistic execution assumptions
-
----
-
-Phase 6 — Capital Preservation & Risk Engine
-
-Build the risk-management foundation.
-
-Focus areas:
-
-- Position sizing
-- Risk per trade
-- Exposure limits
-- Drawdown limits
-- Portfolio constraints
-- Risk-adjusted strategy evaluation
-- Capital preservation
-
----
-
-Phase 7 — Performance Analytics
-
-Measure strategy behaviour in detail.
-
-Focus areas:
-
-- Returns
-- Expectancy
-- Drawdown
-- Win/loss characteristics
-- Risk-adjusted performance
-- Sharpe ratio where appropriate
-- Sortino ratio where appropriate
-- Trade-level analysis
-- Strategy comparison
-- Regime-specific performance
-
----
-
-Phase 8 — Robustness & Anti-Overfitting
-
-Attempt to determine whether apparent strategy performance is genuine or fragile.
-
-Focus areas:
-
-- Parameter sensitivity
-- Parameter stability
-- Monte Carlo testing
-- Randomization
-- Stress testing
-- Robustness classification
-- Fragility detection
-- Alternative assumptions
-
----
-
-Phase 9 — Walk-Forward & Out-of-Sample Validation
-
-Test generalization beyond the development sample.
-
-Focus areas:
-
-- Development/test separation
-- Out-of-sample datasets
-- Rolling validation
-- Anchored validation
-- Walk-forward analysis
-- Generalization assessment
-- Performance stability
-
----
-
-Phase 10 — Research Dashboard & Visualizers
-
-Create a clear interface for inspecting the laboratory's work.
-
-Focus areas:
-
-- Research dashboards
-- Market visualization
-- Experiment visualization
-- Strategy comparison
-- Performance visualization
-- Research findings
-- Validation results
-- Forecast results
-- Market-condition visualization
-
----
-
-Phase 11 — Automated Strategy Screening, Hypothesis Ranking & Forecasting
-
-Introduce higher-level research automation.
-
-Focus areas:
-
-- Hypothesis screening
-- Research prioritization
-- Strategy candidate ranking
-- Automated experiment selection
-- Probabilistic forecasting
-- Forecast recording
-- Forecast evaluation
-- Forecast calibration
-
----
-
-Phase 12 — Verification, Stress Testing & Adaptive Research Intelligence
-
-Develop the system's ability to continuously challenge its own understanding.
-
-Focus areas:
-
-- Comprehensive verification
-- Strategy stress testing
-- Forecast stress testing
-- Market-regime analysis
-- Knowledge registry
-- Reasoning registry
-- Evidence tracking
-- Contradiction tracking
-- Research into evolving Forex conditions
-- Strategy degradation detection
-- Forecast degradation detection
-- Adaptive research prioritization
-
----
-
-Phase 13 — Export, Deployment & Forward Experimentation
-
-Establish controlled progression from research toward real-world experimentation.
-
-Focus areas:
-
-- Research export
-- Experiment reproducibility
-- Strategy reproducibility
-- Paper testing
-- Demo testing
-- Forward experimentation
-- Current-market observation
-- Strategy monitoring
-- Execution-readiness validation
-- Controlled deployment
-- Explicit real-account authorization
-
-Completion of Phase 13 does not mean that research is finished.
-
-It establishes the infrastructure for a continuing research laboratory.
-
----
-
-25. Machine Learning & Adaptive Intelligence
-
-Machine learning is not intended to be added simply because it is powerful or fashionable.
-
-It should be introduced when the research infrastructure provides sufficiently reliable data, experiments, labels, evaluation methods, and evidence.
-
-The ML layer should eventually support areas such as:
-
-- Pattern discovery
-- Regime classification
-- Forecasting
-- Feature selection
-- Relationship discovery
-- Hypothesis generation
-- Strategy evaluation
-- Forecast calibration
-- Anomaly detection
-- Strategy degradation detection
-- Research prioritization
-
-However:
-
-«Machine learning does not replace scientific validation.»
-
-A sophisticated model can overfit just as easily as a simple strategy.
-
-In some cases, a simpler and more interpretable model may provide stronger evidence than a more complex model.
-
----
-
-26. The Adaptive ML Objective
-
-The long-term ML layer should not merely memorize historical examples.
-
-Its broader objective is to maintain and improve its ability to reason about the research problem.
-
-That means it should be able to:
+The long-term laboratory should operate conceptually as:
 
 OBSERVE
    ↓
 MEASURE
    ↓
-LEARN
-   ↓
 QUESTION
    ↓
 HYPOTHESIZE
    ↓
-TEST
+EXPERIMENT
    ↓
-EVALUATE
+VALIDATE
    ↓
-UPDATE
+LEARN
+   ↓
+FORECAST
+   ↓
+FORWARD TEST
+   ↓
+COMPARE WITH NEW EVIDENCE
+   ↓
+UPDATE KNOWLEDGE
+   ↓
+RESEARCH AGAIN
 
-It should be able to recognize when its previous assumptions are becoming unreliable.
+---
+
+28. Progressive Development Roadmap
+
+The original 13-phase roadmap remains the foundation of Dr. Forex.
+
+New capabilities such as forecasting, adaptive research intelligence, machine learning, strategy composition and controlled forward experimentation extend the original roadmap rather than replacing it.
+
+Phase 1 — Android Foundation & Data Ingestion
+
+Establish the Android foundation and reliable market-data ingestion.
+
+Phase 2 — Point-in-Time Historical Data
+
+Establish chronologically correct historical datasets and prevent future-data contamination.
+
+Phase 3 — Technical & Market Structure Engines
+
+Build reusable technical measurements, indicators and market-structure analysis.
+
+Phase 4 — Modular Strategy Framework
+
+Create modular strategy components that can be independently tested, compared and combined.
+
+Phase 5 — Event-Driven Backtesting Simulator
+
+Build realistic historical simulation with chronological execution and market friction.
+
+Phase 6 — Capital Preservation & Risk Engine
+
+Implement risk, position sizing, drawdown and capital-preservation mechanisms.
+
+Phase 7 — Performance Analytics
+
+Measure returns, drawdowns, volatility, trade behaviour and risk-adjusted performance.
+
+Phase 8 — Robustness & Anti-Overfitting
+
+Test parameter sensitivity, feature sensitivity, complexity and data-snooping risks.
+
+Phase 9 — Walk-Forward & Out-of-Sample
+
+Evaluate strategies using information that was not used to formulate them.
+
+Phase 10 — Research Dashboard & Visualizers
+
+Make research results, relationships, experiments and strategy behaviour understandable.
+
+Phase 11 — Automated Strategy Screening, Hypothesis Ranking & Forecasting
+
+Support systematic comparison of strategies, hypotheses, features and forecasting approaches.
+
+This phase may also investigate whether useful components from existing strategies can be combined into new strategy candidates.
+
+Phase 12 — Comprehensive Verification, Stress Testing & Adaptive Research Intelligence
+
+Integrate stronger verification, stress testing, adaptive knowledge, evolving reasoning, ML-assisted research, forecasting evaluation and strategy degradation detection.
+
+Phase 13 — Export, Deployment & Forward Experimentation
+
+Support controlled forward/demo experimentation, research export and carefully governed progression toward possible real-account use.
+
+---
+
+29. Research Output
+
+Dr. Forex should ultimately produce more than a single profitability number.
+
+A research result may contain:
+
+Research Question
+Hypothesis
+Dataset
+Experiment Configuration
+Strategy / Model
+Features
+Parameters
+Market Conditions
+Initial Capital
+Risk Configuration
+Costs
+Results
+Drawdown
+Robustness
+Out-of-Sample Results
+Forecast Performance
+Forward Results
+Contradictory Evidence
+Research Finding
+Confidence
+Known Limitations
+Recommended Follow-Up
+
+---
+
+30. Capital Growth / Depreciation Research
+
+A central eventual capability of the laboratory is to answer practical questions using reproducible research configurations.
 
 For example:
 
-Previous assumption:
-Relationship X is useful under condition Y.
+«If I had capital X, how much would it have grown or depreciated over timeframe W using strategy T?»
 
-New evidence:
-Recent observations increasingly contradict X.
+The laboratory should eventually be able to evaluate:
 
-System response:
+CAPITAL X
+     +
+STRATEGY T
+     +
+TIMEFRAME W
+     +
+INSTRUMENT
+     +
+MARKET CONDITIONS
+     +
+RISK CONFIGURATION
+     +
+TRADING COSTS
+        ↓
+HISTORICAL / SIMULATED OUTCOME
 
-1. Detect contradiction.
-2. Reduce confidence.
-3. Investigate regime change.
-4. Review relevant research.
-5. Test alternative explanations.
-6. Re-evaluate affected strategies.
-7. Update the knowledge record.
+The output should include, where applicable:
 
-This is more useful than simply retraining a model and forgetting why its behaviour changed.
+- Starting capital
+- Final capital
+- Net change
+- Percentage return
+- Maximum drawdown
+- Equity curve
+- Risk metrics
+- Trade statistics
+- Winning and losing periods
+- Conditions under which performance occurred
 
----
-
-27. Research Output
-
-The primary output of Dr. Forex is knowledge backed by evidence.
-
-Outputs may include:
-
-- Research findings
-- Experiment results
-- Market observations
-- Quantitative relationships
-- Forecasts
-- Forecast calibration reports
-- Strategy candidates
-- Strategy evaluations
-- Robustness reports
-- Market-regime observations
-- Knowledge updates
-- Strategy degradation reports
-- Research recommendations
-- New research questions
-
-The system should increasingly be able to explain:
-
-«What did we learn?»
-
-«How strong is the evidence?»
-
-«What contradicts it?»
-
-«Under what conditions does it apply?»
-
-«What remains uncertain?»
-
-«What should we investigate next?»
+This should remain a research/simulation result, not a promise of future performance.
 
 ---
 
-28. Research Traceability
+31. Research Traceability
 
-Important conclusions should be traceable through the research system.
+Important outputs should be traceable back to their source.
 
-Ideally:
+A forecast should be traceable to:
+
+FORECAST
+   ↓
+REASONING VERSION
+   ↓
+EVIDENCE
+   ↓
+FEATURES
+   ↓
+MARKET DATA
+
+A strategy result should be traceable to:
+
+STRATEGY RESULT
+   ↓
+STRATEGY VERSION
+   ↓
+EXPERIMENT
+   ↓
+CONFIGURATION
+   ↓
+DATASET
+
+A research conclusion should be traceable to:
 
 CONCLUSION
-    ↓
-EVIDENCE
-    ↓
-EXPERIMENT
-    ↓
-METHODOLOGY
-    ↓
-FEATURES
-    ↓
-DATASET
-    ↓
-SOURCE DATA
-
-Likewise, a strategy should be traceable back to its research basis:
-
-TRADE / STRATEGY RESULT
-        ↓
-STRATEGY VERSION
-        ↓
-VALIDATION
-        ↓
-EXPERIMENT
-        ↓
-HYPOTHESIS
-        ↓
+   ↓
 RESEARCH FINDING
-        ↓
+   ↓
+EXPERIMENT(S)
+   ↓
+EVIDENCE
+   ↓
 DATA
 
-This traceability is essential for auditing, debugging, learning, and scientific integrity.
-
 ---
 
-29. Current Development Direction
-
-Dr. Forex is being developed progressively from the quantitative foundation upward.
-
-The project should not attempt to build sophisticated machine learning or automated execution on top of unreliable research infrastructure.
-
-The current development direction therefore emphasizes areas such as:
-
-- Market-data quality
-- Chronological market-series integrity
-- Point-in-time timeframe alignment
-- Statistical measurement
-- Volume-derived measurements
-- Quantitative feature construction
-- Feature snapshots
-- Centralized feature calculation
-- Reliable research inputs
-
-The development order is intentional:
-
-«Reliable intelligence cannot be built on unreliable evidence.»
-
-The system should therefore earn complexity progressively.
-
----
-
-30. Long-Term Vision
-
-The long-term vision is for Dr. Forex to become a continuously evolving quantitative research laboratory.
-
-The mature system should be capable of:
-
-1. Observing financial markets.
-2. Measuring market behaviour.
-3. Identifying potentially meaningful relationships.
-4. Generating competing hypotheses.
-5. Designing experiments.
-6. Running reproducible research.
-7. Rejecting weak explanations.
-8. Developing probabilistic forecasts.
-9. Measuring forecast quality.
-10. Developing strategy candidates.
-11. Testing strategy robustness.
-12. Testing strategies on unseen data.
-13. Experimenting under current market conditions.
-14. Detecting changing market regimes.
-15. Detecting strategy degradation.
-16. Updating its knowledge.
-17. Preserving the history of its reasoning.
-18. Generating new research questions.
-19. Progressively improving its research process.
-
-The goal is not to build a machine that claims to know the future.
-
-The goal is to build a system that becomes increasingly capable of:
-
-«asking better questions, testing them properly, measuring uncertainty, learning from failure, and preserving only what the evidence continues to support.»
-
----
-
-31. What Dr. Forex Is Not
+32. What Dr. Forex Is Not
 
 Dr. Forex is not intended to be:
 
 - A guaranteed-profit system
-- A simple buy/sell signal generator
-- A system that assumes historical performance will continue indefinitely
-- A black-box system that hides its reasoning
-- A machine-learning model that merely memorizes historical prices
-- A system that converts every forecast into a trade
-- A system that automatically risks real money because a backtest looks profitable
-- A replacement for proper risk management
-- A replacement for human responsibility and authorization
+- A simple BUY/SELL signal generator
+- A black-box money-making machine
+- A backtest optimizer designed solely to maximize historical returns
+- A system that assumes one strategy works permanently
+- A system that treats forecasts as certainty
+- A system that automatically converts successful research into real-money trading
 
 ---
 
-32. Default Laboratory Configuration
+33. Default Laboratory Configuration
 
-The initial research environment uses the following defaults:
+The laboratory should begin with sensible defaults while allowing the researcher to customize them.
 
-Setting| Default
-Base Currency| KSh
-Initial Research Capital| KSh 20,000
-Default Risk Per Trade| 1.0%
-Default Execution Timeframe| M15
-Context Timeframes| H1 / H4
-Default Spread| 1.5 pips
-Default Slippage| 0.5 pips
+Example starting configuration:
 
-These are research assumptions and are not universal truths.
+Base Currency:          KSh
+Initial Capital:        KSh 20,000
+Risk per Trade:         1%
+Execution Timeframe:    M15
+Context Timeframes:     H1 / H4
+Spread:                 1.5 pips
+Slippage:               0.5 pips
 
-They must be configurable and should not be interpreted as appropriate for every instrument, broker, market regime, or future deployment environment.
+These are default starting values only.
+
+They are not fixed system requirements.
+
+Initial capital is fully customizable.
+
+Risk, timeframes and other legitimate research parameters are customizable and may themselves become subjects of experimentation.
+
+Market-cost assumptions should be made as realistic as available data and the research environment permit.
 
 ---
 
-33. Scientific Disclaimer
+34. Scientific Disclaimer
 
 Dr. Forex is a research project.
 
-Backtested, simulated, or historical performance does not guarantee future results.
+Historical, simulated, backtested, demo or forward results do not guarantee future performance.
 
-Financial markets are uncertain and dynamic. Historical relationships can disappear. Market conditions can change. Data can be incomplete or misleading. Simulation assumptions can differ from actual execution. Models can overfit. Forecasts can be wrong.
+Financial markets are uncertain and can change materially.
 
-Any future transition from research to real-money execution must remain subject to:
+No research result should be interpreted as a guarantee of profit.
 
-- Sufficient evidence
-- Independent validation
-- Robustness testing
-- Appropriate risk controls
-- Operational safeguards
-- Broker/account constraints
-- Explicit user authorization
+Any eventual real-money execution capability must be subject to appropriate validation, risk controls, operational safeguards and explicit user authorization.
 
 ---
 
-34. Project Status
+35. Project Status
 
-Project: Dr. Forex Research Lab
+Dr. Forex is under active development.
 
-Platform: Android
+Development prioritizes the research foundation before higher-level automation.
 
-Domain: Quantitative financial-market research
+The roadmap describes the intended progressive development of the laboratory and should not be interpreted as a claim that every phase or capability is already complete.
 
-Primary market focus: Forex
-
-Primary purpose: Research, experimentation, forecasting, strategy development, validation, and progressive forward experimentation
-
-Current development principle:
-
-«Scientific evidence before trading authority.»
-
-Long-term development principle:
-
-DATA
-  ↓
-MEASUREMENT
-  ↓
-RESEARCH
-  ↓
-EVIDENCE
-  ↓
-FORECAST
-  ↓
-STRATEGY
-  ↓
-VALIDATION
-  ↓
-CONTROLLED EXPERIMENT
-  ↓
-NEW EVIDENCE
-  ↓
-RESEARCH AGAIN
+The actual source code remains the authoritative reference for implementation status.
 
 ---
 
 Final Principle
 
-«Dr. Forex is not being built to prove that a strategy works.
+Dr. Forex is not being built to prove that a strategy works.
 
-It is being built to discover whether a strategy, forecast, relationship, or market explanation deserves to be believed — and to keep testing that belief as new evidence arrives.»
+It is being built to discover:
+
+«whether a strategy, forecast, relationship, feature, market explanation, or research finding deserves to be believed; under what conditions it remains valid; how sensitive it is to changing assumptions; and whether new evidence should strengthen, weaken, revise, or invalidate that belief.»
+
+Ultimately, the laboratory should be capable of answering questions such as:
+
+«If I had capital X, what would have happened to it over timeframe W using strategy T, under clearly defined and reproducible conditions?»
+
+And when appropriate:
+
+«Can the strongest evidence-supported characteristics of different strategies be combined into a new strategy that survives independent testing?»
+
+The answer must come from research and evidence—not optimism.
